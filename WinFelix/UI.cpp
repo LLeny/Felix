@@ -7,7 +7,7 @@
 #include "UserInput.hpp"
 #include "ConfigProvider.hpp"
 #include <imfilebrowser.h>
-#include "WinAudioOut.hpp"
+#include "AudioOut.hpp"
 #include "Core.hpp"
 #include "CPU.hpp"
 #include "SysConfig.hpp"

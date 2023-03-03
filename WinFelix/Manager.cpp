@@ -2,7 +2,7 @@
 #include "Manager.hpp"
 #include "InputFile.hpp"
 #include "WinImgui.hpp"
-#include "WinAudioOut.hpp"
+#include "AudioOut.hpp"
 #include "ComLynxWire.hpp"
 #include "Core.hpp"
 #include "SymbolSource.hpp"
@@ -40,7 +40,7 @@ Manager::Manager() : mUI{ *this },
                      mRenderer{}
 {
   mDebugger( RunMode::RUN );
-  mAudioOut = std::make_shared<WinAudioOut>();
+  mAudioOut = std::make_shared<AudioOut>();
   mComLynxWire = std::make_shared<ComLynxWire>();
 
   mRenderThread = std::thread{ [this]

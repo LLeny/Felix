@@ -3,7 +3,6 @@
   <ItemGroup>
     <ClCompile Include="Manager.cpp" />
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="WinAudioOut.cpp" />
     <ClCompile Include="WinImgui11.cpp" />
     <ClCompile Include="WinMain.cpp" />
     <ClCompile Include="WinImgui.cpp" />
@@ -23,12 +22,12 @@
     <ClCompile Include="EncodingRenderer.cpp" />
     <ClCompile Include="DX11Helpers.cpp" />
     <ClCompile Include="SystemDriver.cpp" />
+    <ClCompile Include="AudioOut.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Manager.hpp" />
     <ClInclude Include="pch.hpp" />
     <ClInclude Include="version.hpp" />
-    <ClInclude Include="WinAudioOut.hpp" />
     <ClInclude Include="WinImgui11.hpp" />
     <ClInclude Include="Ex.hpp" />
     <ClInclude Include="WinImgui.hpp" />
@@ -71,6 +70,7 @@
     <ClInclude Include="IUserInput.hpp" />
     <ClInclude Include="ISystemDriver.hpp" />
     <ClInclude Include="rational.hpp" />
+    <ClInclude Include="AudioOut.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="board.csh">

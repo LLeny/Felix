@@ -2,7 +2,7 @@
 #include "Core.hpp"
 #include "IInputSource.hpp"
 #include "Log.hpp"
-#include "WinAudioOut.hpp"
+#include "AudioOut.hpp"
 #include "InputFile.hpp"
 #include "Manager.hpp"
 #include "ComLynxWire.hpp"

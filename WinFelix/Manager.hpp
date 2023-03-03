@@ -5,7 +5,7 @@
 #include "UI.hpp"
 #include "Debugger.hpp"
 
-class WinAudioOut;
+class AudioOut;
 class ComLynxWire;
 class Core;
 class SymbolSource;
@@ -81,7 +81,7 @@ private:
   std::shared_ptr<ISystemDriver> mSystemDriver;
   std::shared_ptr<IBaseRenderer> mRenderer;
   std::shared_ptr<IExtendedRenderer> mExtendedRenderer;
-  std::shared_ptr<WinAudioOut> mAudioOut;
+  std::shared_ptr<AudioOut> mAudioOut;
   std::shared_ptr<ComLynxWire> mComLynxWire;
   std::shared_ptr<IEncoder> mEncoder;
   std::unique_ptr<SymbolSource> mSymbols;

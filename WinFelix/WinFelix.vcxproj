@@ -147,6 +147,7 @@
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AudioOut.cpp" />
     <ClCompile Include="ConfigProvider.cpp" />
     <ClCompile Include="Debugger.cpp" />
     <ClCompile Include="DX11Helpers.cpp" />
@@ -168,13 +169,13 @@
     <ClCompile Include="UI.cpp" />
     <ClCompile Include="UserInput.cpp" />
     <ClCompile Include="VideoSink.cpp" />
-    <ClCompile Include="WinAudioOut.cpp" />
     <ClCompile Include="WinImgui.cpp" />
     <ClCompile Include="WinImgui11.cpp" />
     <ClCompile Include="WinImgui9.cpp" />
     <ClCompile Include="WinMain.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AudioOut.hpp" />
     <ClInclude Include="BaseRenderer.hpp" />
     <ClInclude Include="board.hxx" />
     <ClInclude Include="ConfigProvider.hpp" />
@@ -205,7 +206,6 @@
     <ClInclude Include="version.hpp" />
     <ClInclude Include="vertex.hxx" />
     <ClInclude Include="VideoSink.hpp" />
-    <ClInclude Include="WinAudioOut.hpp" />
     <ClInclude Include="WinImgui.hpp" />
     <ClInclude Include="WinImgui11.hpp" />
     <ClInclude Include="WinImgui9.hpp" />

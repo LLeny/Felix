@@ -2,16 +2,30 @@
 
 #include "Utility.hpp"
 #include "wav.h"
+#include "Log.hpp"
+#include "portaudio.h"
+
+#define PA_CHECK(x)                                \
+	do                                               \
+	{                                                \
+		PaError err = x;                              \
+		if (err)                                       \
+		{                                              \
+			L_ERROR << "Detected PortAudio error: " << err; \
+			abort();                                     \
+		}                                              \
+	} while (0)
+
 
 class Core;
 class IEncoder;
 
-class WinAudioOut
+class AudioOut
 {
 public:
 
-  WinAudioOut();
-  ~WinAudioOut();
+  AudioOut();
+  ~AudioOut();
 
   void setEncoder( std::shared_ptr<IEncoder> pEncoder );
   bool wait();
@@ -24,20 +38,21 @@ private:
 
   int correctedSPS( int64_t samplesEmittedPerFrame, int64_t renderingTimeQPC );
 
-  ComPtr<IMMDevice> mDevice;
-  ComPtr<IAudioClient> mAudioClient;
-  ComPtr<IAudioClock> mAudioClock;
-  ComPtr<IAudioRenderClient> mRenderClient;
   std::shared_ptr<IEncoder> mEncoder;
+
+  PaStream* mStream;
+  PaStreamParameters mOutputParameters;
+  PaStreamParameters mInputParameters;
+
   WavFile* mWav;
   HANDLE mEvent;
 
   double mTimeToSamples;
+  double mSampleRate;
 
   uint32_t mBufferSize;
   std::vector<AudioSample> mSamplesBuffer;
 
-  WAVEFORMATEX * mMixFormat;
   int32_t mSamplesDelta;
   int32_t mSamplesDeltaDelta;
 
