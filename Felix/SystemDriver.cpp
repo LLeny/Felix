@@ -102,6 +102,11 @@ void SystemDriver::quit()
   mRenderer->terminate();
 }
 
+void SystemDriver::setTitle( std::string title )
+{
+  mRenderer->setTitle( title );
+}
+
 void SystemDriver::update()
 {
   mIntputSource->updateGamepad();
@@ -121,8 +126,7 @@ void SystemDriver::update()
       n += " paused";
     }
 
-    // TODO
-    // SetWindowText( mhWnd, n.c_str() );
+    setTitle( n );
   }
 }
 
@@ -147,8 +151,7 @@ void SystemDriver::setImageName( std::string name )
 {
   mImageFileName = std::move( name );
   std::string n  = appname_string + " " + version_string + " " + mImageFileName;
-  // TODO
-  // SetWindowText( mhWnd, n.c_str() );
+  setTitle( n );
 }
 
 void SystemDriver::setPaused( bool paused )

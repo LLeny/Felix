@@ -22,7 +22,7 @@ public:
   void updateRotation( ImageProperties::Rotation rotation ) override;
   void setImageName( std::string name ) override;
   void setPaused( bool paused ) override;
-
+  void setTitle( std::string title ) override;
   void registerDropFiles( std::function<void( std::filesystem::path )> dropFilesHandler ) override;
   void registerUpdate( std::function<void()> updataHandler ) override;
 

@@ -14,6 +14,8 @@ public:
   virtual int64_t render( UI& ui ) = 0;
   virtual void terminate() = 0;
   virtual bool shouldClose() = 0;
+  virtual void setTitle( std::string title ) = 0;
   virtual std::shared_ptr<IVideoSink> getVideoSink() = 0;
   virtual ImTextureID getMainScreenTextureID() = 0;
+
 };
