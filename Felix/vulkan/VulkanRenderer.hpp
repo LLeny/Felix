@@ -63,7 +63,7 @@ public:
   int64_t render( UI &ui ) override;
   void terminate() override;
   bool shouldClose() override;
-  void setTitle( std::string title );
+  void setTitle( std::string title ) override;
   std::shared_ptr<IVideoSink> getVideoSink() override;
 
 private:
@@ -90,7 +90,7 @@ private:
   void framePresent( ImGui_ImplVulkanH_Window *wd );
   void renderImGui( UI &ui );
   void renderMainScreen();
-  ImTextureID getMainScreenTextureID();
+  ImTextureID getMainScreenTextureID() override;
 
   vkb::Device mVkbDevice;
   VkInstance mInstance = VK_NULL_HANDLE;

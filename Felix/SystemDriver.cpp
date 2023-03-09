@@ -13,20 +13,22 @@
 
 bool runOtherInstanceIfPresent()
 {
-  // TODO
-  return false;
+  auto sysConfig = gConfigProvider.sysConfig();
+
+  if ( sysConfig->singleInstance && !gConfigProvider.isLocked() )
+  {
+    L_INFO << "Felix if configured as single instance and another instance seems to be running.";
+    return false;
+  }
+
+  return true;
 }
 
 std::shared_ptr<ISystemDriver> createSystemDriver( Manager &manager, CommandLineParser::CommandLineOptions &options, int nCmdShow )
 {
-  auto sysConfig = gConfigProvider.sysConfig();
-
-  if ( sysConfig->singleInstance )
+  if ( !runOtherInstanceIfPresent() )
   {
-    if ( runOtherInstanceIfPresent() )
-    {
-      return {};
-    }
+    return {};
   }
 
   std::string name = appname_string + " " + version_string;

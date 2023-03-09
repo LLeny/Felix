@@ -27,6 +27,11 @@ int main( int argc, char *argv[] )
 
     auto systemDriver = createSystemDriver( manager, p.mOptions, 0 );
 
+    if( !systemDriver )
+    {
+      return -1;
+    }
+
     systemDriver->eventLoop( manager );
 
     return 0;
