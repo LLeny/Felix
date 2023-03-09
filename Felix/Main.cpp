@@ -1,3 +1,4 @@
+#include "pch.hpp"
 #include "AudioOut.hpp"
 #include "ComLynxWire.hpp"
 #include "CommandLine.hpp"
@@ -9,7 +10,6 @@
 #include "Log.hpp"
 #include "Manager.hpp"
 #include "SysConfig.hpp"
-#include "pch.hpp"
 
 int main( int argc, char *argv[] )
 {
