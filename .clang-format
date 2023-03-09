@@ -1,10 +1,6 @@
 ---
 BasedOnStyle: Microsoft
-AlignConsecutiveAssignments:
-  Enabled: true
 AlignConsecutiveBitFields:
-  Enabled: true
-AlignConsecutiveDeclarations:
   Enabled: true
 AlignConsecutiveMacros:
   Enabled: true
