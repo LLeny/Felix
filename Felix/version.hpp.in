@@ -1,0 +1,7 @@
+#pragma once
+#include <string>
+#define FELIX_NAME "@PROJECT_NAME@"
+#define FELIX_VERSION  "@PROJECT_VERSION@"
+
+static std::string version_string = FELIX_VERSION ;
+static std::string appname_string = FELIX_NAME;

@@ -1,0 +1,44 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_int8: enable
+
+layout (local_size_x = 16, local_size_y = 16) in;
+
+layout (set = 0, binding = 0) readonly buffer ScreenBuffer {
+	uint8_t pixels[80*105];
+} screenBuffer;
+
+layout (set = 0, binding = 1) readonly buffer PaletteBuffer {
+	uint8_t palette[32];
+} paletteBuffer;
+
+layout (set = 0, binding = 2, rgba8) writeonly uniform image2D resultImage;
+
+vec4 getColor(uint8_t pixel)
+{
+	uint8_t br = paletteBuffer.palette[pixel+uint8_t(16)];
+	uint8_t g =  paletteBuffer.palette[pixel];
+
+	float rf = float( ( br << 4 ) | ( br & uint8_t(0x0f) ) ) / 255.0;
+	float gf = float( ( g  << 4 ) | ( g  & uint8_t(0x0f) ) ) / 255.0;
+	float bf = float( ( br >> 4 ) | ( br & uint8_t(0xf0) ) ) / 255.0;
+
+	return vec4 ( rf, gf, bf, 1);
+}
+
+void main()
+{	
+	if(gl_GlobalInvocationID.x % 2 == 1)
+	{
+		return;
+	}
+
+	uint n = gl_GlobalInvocationID.y * 80 + gl_GlobalInvocationID.x / 2;
+
+	uint8_t p = screenBuffer.pixels[n];
+
+	uint8_t left =  p >> 4;
+	uint8_t right = p & uint8_t(0x0F);
+	
+	imageStore( resultImage, ivec2( gl_GlobalInvocationID.xy ), getColor( left ) );
+	imageStore( resultImage, ivec2( gl_GlobalInvocationID.x + 1, gl_GlobalInvocationID.y ), getColor( right ) );
+}

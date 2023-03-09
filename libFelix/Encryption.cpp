@@ -1,28 +1,42 @@
 #include "pch.hpp"
 #include "Encryption.hpp"
-#include "Log.hpp"
 
 uint8_t decrypt( std::span<uint8_t const> encrypted, int& accumulator, std::vector<uint8_t>& result )
 {
-  using namespace boost::multiprecision;
-  using namespace boost::multiprecision::literals;
+  BN_CTX *ctx = BN_CTX_new();
+  BIGNUM *lynxpubmod = BN_new();
+  BIGNUM *lynxpubexp = BN_new();
+  BIGNUM *decr = BN_new();
+  BIGNUM *enc = BN_new();
+  unsigned char decrchar[DECRYPT_BLOCK_SIZE + 1] {};
 
-  uint512_t constexpr lynxpubmod = 0x35b5a3942806d8a22695d771b23cfd561c4a19b6a3b02600365a306e3c4d63381bd41c136489364cf2ba2a58f4fee1fdac7e79_cppui512;
-  uint512_t constexpr lynxprvexp = 0x23ce6d0d7004906c19b93a4bcc28a8e412dc11246d2019557987ab5ca818a3d3c8e3276d4270cb8021d6bda4296d47b1e5e2a3_cppui512;
-  uint512_t constexpr lynxpubexp = 3;
-  uint512_t enc;
-  import_bits( enc, encrypted.begin(), encrypted.end(), 8, false );
-  uint512_t decr = powm( enc, lynxpubexp, lynxpubmod );
-  std::vector<uint8_t> decrv;
-  export_bits( decr, std::back_inserter( decrv ), 8, false );
+  BN_hex2bn(&lynxpubmod, "35b5a3942806d8a22695d771b23cfd561c4a19b6a3b02600365a306e3c4d63381bd41c136489364cf2ba2a58f4fee1fdac7e79");
+  BN_hex2bn(&lynxpubexp, "3");
 
-  for ( size_t i = 0; i < decrv.size() - 1; ++i ) //skipping last byte
+  std::vector<uint8_t> reversed;
+
+  reversed.insert(reversed.begin(), encrypted.begin(), encrypted.end());
+  std::reverse(reversed.begin(), reversed.end());
+
+  BN_bin2bn( reversed.data(), reversed.size(), enc );
+
+  BN_mod_exp( decr, enc, lynxpubexp, lynxpubmod, ctx );
+
+  BN_bn2bin( decr, decrchar );
+
+  for ( size_t i = DECRYPT_BLOCK_SIZE - 1; i > 0; --i )
   {
-    accumulator += decrv[i];
+    accumulator += decrchar[i];
     result.push_back( accumulator );
   }
 
-  return decrv.back();
+  BN_clear_free(enc);
+  BN_clear_free(decr);
+  BN_clear_free(lynxpubmod);
+  BN_clear_free(lynxpubexp);
+  BN_CTX_free(ctx);
+
+  return decrchar[0];
 }
 
 std::vector<uint8_t> decrypt( size_t blockcount, std::span<uint8_t const> encrypted )
@@ -31,7 +45,7 @@ std::vector<uint8_t> decrypt( size_t blockcount, std::span<uint8_t const> encryp
   int accumulator = 0;
   for ( size_t i = 0; i < blockcount; ++i )
   {
-    uint8_t sanityChek = decrypt( std::span<uint8_t const>{ encrypted.data() + 51 * i, 51 }, accumulator, result );
+    uint8_t sanityChek = decrypt( std::span<uint8_t const>{ encrypted.data() + DECRYPT_BLOCK_SIZE * i, DECRYPT_BLOCK_SIZE }, accumulator, result );
     if ( sanityChek != 0x15 )
     {
       L_ERROR << "Sanity check #1 value for block " << i << " is 0x" << std::hex << sanityChek << " != 0x15";

@@ -1,5 +1,8 @@
 #pragma once
 
+#include <iostream>
+#include <sstream>
+
 class SymbolSource
 {
   struct Symbol

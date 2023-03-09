@@ -34,7 +34,7 @@ std::optional<uint16_t> SymbolSource::symbol( std::string const& name ) const
 
 SymbolSource::Symbol SymbolSource::parseLine( std::string const& line )
 {
-  std::istringstream is{ line };
+  std::istringstream is( line );
   std::string name;
   int bank, adr;
 

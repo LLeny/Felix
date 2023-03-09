@@ -16,12 +16,6 @@ public:
   virtual void pushAudioBuffer( std::span<float const> buf ) = 0;
 };
 
-#ifdef ENCODER_EXPORTS
-# define ENCODER_EXPORT __declspec(dllexport)
-#else
-# define ENCODER_EXPORT __declspec(dllimport)
-#endif
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -29,8 +23,8 @@ extern "C" {
 typedef IEncoder* ( *PCREATE_ENCODER )( char const* path, int vbitrate, int abitrate, int width, int height );
 typedef void ( *PDISPOSE_ENCODER )( IEncoder* encoder );
 
-ENCODER_EXPORT IEncoder* createEncoder( char const* path, int vbitrate, int abitrate, int width, int height );
-ENCODER_EXPORT void disposeEncoder( IEncoder* encoder );
+IEncoder* createEncoder( char const* path, int vbitrate, int abitrate, int width, int height );
+void disposeEncoder( IEncoder* encoder );
 
 #ifdef __cplusplus
 }

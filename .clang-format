@@ -1,0 +1,23 @@
+---
+BasedOnStyle: Microsoft
+AlignConsecutiveAssignments:
+  Enabled: true
+AlignConsecutiveBitFields:
+  Enabled: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+AlignConsecutiveMacros:
+  Enabled: true
+AllowAllArgumentsOnNextLine: false
+BinPackArguments: false
+BinPackParameters: false
+BreakBeforeConceptDeclarations: Never
+BreakBeforeTernaryOperators: false
+ColumnLimit: 360
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+IndentWidth: 2
+InsertBraces: true
+ObjCBinPackProtocolList: Never
+SpacesInParentheses: true
+TabWidth: 2
