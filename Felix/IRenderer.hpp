@@ -17,5 +17,6 @@ public:
   virtual void setTitle( std::string title ) = 0;
   virtual std::shared_ptr<IVideoSink> getVideoSink() = 0;
   virtual ImTextureID getMainScreenTextureID() = 0;
+  virtual void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) = 0;
 
 };

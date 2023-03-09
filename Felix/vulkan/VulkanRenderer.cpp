@@ -3,11 +3,6 @@
 #include "VulkanRenderer.hpp"
 #include <vulkan/vulkan.h>
 
-static void glfw_error_callback( int error, const char *description )
-{
-  fprintf( stderr, "GLFW Error %d: %s\n", error, description );
-}
-
 #if defined( VKB_DEBUG )
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback( VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData )
@@ -285,19 +280,52 @@ void VulkanRenderer::framePresent( ImGui_ImplVulkanH_Window *wd )
 
 void VulkanRenderer::initialize()
 {
-  glfwSetErrorCallback( glfw_error_callback );
+  glfwSetErrorCallback( [](int error, const char *description) 
+  {
+    L_ERROR << "GLFW Error " << error << ": " << description;
+  });
+
   if ( !glfwInit() )
   {
     return;
   }
 
   glfwWindowHint( GLFW_CLIENT_API, GLFW_NO_API );
-  mMainWindow = glfwCreateWindow( 1280, 720, "Dear ImGui GLFW+Vulkan example", NULL, NULL );
+  mMainWindow = glfwCreateWindow( 1280, 720, "VulkanRenderer", NULL, NULL );
   if ( !glfwVulkanSupported() )
   {
-    printf( "GLFW: Vulkan Not Supported\n" );
+    L_ERROR << "GLFW: Vulkan Not Supported";
     return;
   }
+
+  glfwSetWindowUserPointer( mMainWindow, this );
+
+  glfwSetDropCallback( mMainWindow, [](GLFWwindow *window, int count, const char **paths)
+  {
+    if( count != 1 )
+    {
+      return;
+    }
+
+    auto self = static_cast<VulkanRenderer*>( glfwGetWindowUserPointer( window ) );
+    if( !self->mFileDropCallback )
+    {
+      return;
+    }
+    
+    std::filesystem::path path( paths[0] );
+
+    L_INFO << "VulkanRenderer - dropped '" << path << "'";
+
+    if( !std::filesystem::exists( path ) )
+    {
+      L_INFO << "VulkanRenderer - '" << path << "' doesn't exist...";
+      return;
+    }
+
+    self->mFileDropCallback( path );
+  } );
+
   uint32_t extensions_count = 0;
   const char **extensions = glfwGetRequiredInstanceExtensions( &extensions_count );
   setupVulkan( extensions, extensions_count );
@@ -423,9 +451,7 @@ VkPipelineShaderStageCreateInfo VulkanRenderer::loadShader( std::string fileName
   else
   {
     L_ERROR << "Error: Could not open shader file \"" << fileName << "\"";
-    {
-      return {};
-    }
+    return {};
   }
 }
 
@@ -735,4 +761,9 @@ void VulkanRenderer::renderImGui( UI &ui )
     frameRender( wd, draw_data );
     framePresent( wd );
   }
+}
+
+void VulkanRenderer::registerFileDropCallback( std::function<void( std::filesystem::path )> callback )
+{
+  mFileDropCallback = std::move( callback );
 }

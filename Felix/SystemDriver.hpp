@@ -29,7 +29,7 @@ public:
   int64_t mRenderingTime;
 
 private:
-  void handleFileDrop();
+  void handleFileDrop( std::filesystem::path path );
 
   friend std::shared_ptr<ISystemDriver> createSystemDriver( Manager& manager, CommandLineParser::CommandLineOptions &options, int nCmdShow );
 

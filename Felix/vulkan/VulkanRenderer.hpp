@@ -65,6 +65,7 @@ public:
   bool shouldClose() override;
   void setTitle( std::string title ) override;
   std::shared_ptr<IVideoSink> getVideoSink() override;
+  void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) override;
 
 private:
   void setupVulkan( const char **extensions, uint32_t extensions_count );
@@ -91,6 +92,8 @@ private:
   void renderImGui( UI &ui );
   void renderMainScreen();
   ImTextureID getMainScreenTextureID() override;
+
+  std::function<void( std::filesystem::path )> mFileDropCallback = {};
 
   vkb::Device mVkbDevice;
   VkInstance mInstance = VK_NULL_HANDLE;

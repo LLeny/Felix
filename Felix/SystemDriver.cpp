@@ -1,10 +1,10 @@
+#include "pch.hpp"
 #include "SystemDriver.hpp"
 #include "CommandLine.hpp"
 #include "ConfigProvider.hpp"
 #include "Manager.hpp"
 #include "SysConfig.hpp"
 #include "UserInput.hpp"
-#include "pch.hpp"
 #include "version.hpp"
 
 #ifndef _WIN32
@@ -64,6 +64,7 @@ void SystemDriver::initialize()
   mIntputSource = std::make_shared<UserInput>();
 
   mRenderer->initialize();
+  mRenderer->registerFileDropCallback( std::bind( &SystemDriver::handleFileDrop, this, std::placeholders::_1  ) );
 }
 
 int SystemDriver::eventLoop( Manager &m )
@@ -171,31 +172,10 @@ void SystemDriver::registerUpdate( std::function<void()> updateHandler )
   mUpdateHandler = std::move( updateHandler );
 }
 
-void SystemDriver::handleFileDrop()
+void SystemDriver::handleFileDrop( std::filesystem::path file )
 {
-  // TODO
-  // #ifdef _WIN64
-  //   auto h = GlobalAlloc( GMEM_MOVEABLE, 0 );
-  //   uintptr_t hptr = reinterpret_cast<uintptr_t>( h );
-  //   GlobalFree( h );
-  //   uintptr_t hdropptr = reinterpret_cast<uintptr_t>( hDrop );
-  //   hDrop = reinterpret_cast<HDROP>( hptr & 0xffffffff00000000 | hdropptr & 0xffffffff );
-  // #endif
-
-  // uint32_t cnt = DragQueryFile( hDrop, ~0, nullptr, 0 );
-
-  // std::wstring arg;
-
-  // if ( cnt > 0 )
-  // {
-  //   uint32_t size = DragQueryFile( hDrop, 0, nullptr, 0 );
-  //   arg.resize( size + 1, L'\0' );
-  //   DragQueryFile( hDrop, 0, arg.data(), size + 1 );
-  //   //removes null terminating character
-  //   arg.pop_back();
-  // }
-
-  // DragFinish( hDrop );
-  // if ( mDropFilesHandler )
-  //   mDropFilesHandler( std::move( arg ) );
+  if ( mDropFilesHandler )
+  {
+    mDropFilesHandler( std::move( file ) );
+  }
 }
