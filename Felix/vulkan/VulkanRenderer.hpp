@@ -23,6 +23,7 @@
 #include "../UI.hpp"
 #include "../VideoSink.hpp"
 #include "../version.hpp"
+#include "Utility.hpp"
 
 #define VK_CHECK( x )                                    \
   do                                                     \

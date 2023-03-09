@@ -383,7 +383,7 @@ void VulkanRenderer::initialize()
   VK_CHECK( vkDeviceWaitIdle( mDevice ) );
   ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-  prepareTextureTarget( &mMainScreenTexture, VK_FORMAT_R8G8B8A8_UNORM, 160, 102 );
+  prepareTextureTarget( &mMainScreenTexture, VK_FORMAT_R8G8B8A8_UNORM, SCREEN_WIDTH, SCREEN_HEIGHT );
   prepareCompute();
 }
 
@@ -411,8 +411,8 @@ int64_t VulkanRenderer::render( UI &ui )
 void VulkanRenderer::renderMainScreen()
 {
   if ( auto frame = mVideoSink->pullNextFrame() )
-  {
-    memcpy( mLynxScreenAllocationInfo.pMappedData, frame->data() + 80 * 3, frame->size() - 80 * 3 );
+  { 
+    memcpy( mLynxScreenAllocationInfo.pMappedData, frame->data(), frame->size() );
     memcpy( mLynxPaletteAllocationInfo.pMappedData, mVideoSink->getPalettePointer(), 32 );
   }
 }
@@ -493,7 +493,7 @@ void VulkanRenderer::prepareCompute()
   VkBufferCreateInfo screenbufferInfo = {};
   screenbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   screenbufferInfo.pNext = nullptr;
-  screenbufferInfo.size = 80 * 105;
+  screenbufferInfo.size = SCREEN_BUFFER_SIZE;
   screenbufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
   VmaAllocationCreateInfo screenvmaallocInfo = {};
   screenvmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -502,7 +502,7 @@ void VulkanRenderer::prepareCompute()
   VkDescriptorBufferInfo screenbinfo;
   screenbinfo.buffer = mMainScreenBuffer._buffer;
   screenbinfo.offset = 0;
-  screenbinfo.range = 80 * 105;
+  screenbinfo.range = SCREEN_BUFFER_SIZE;
 
   VkBufferCreateInfo palettebufferInfo = {};
   palettebufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;

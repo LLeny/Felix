@@ -48,3 +48,4 @@ std::vector<uint8_t> readFile( std::filesystem::path const& path );
 
 static constexpr int SCREEN_WIDTH = 160;
 static constexpr int SCREEN_HEIGHT = 102;
+static constexpr int SCREEN_BUFFER_SIZE = (SCREEN_WIDTH / 2 * SCREEN_HEIGHT);

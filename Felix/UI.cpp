@@ -437,7 +437,12 @@ void UI::drawMainScreen()
 
   if (debugMode)
   {
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowMinSize, ImVec2{ SCREEN_WIDTH, SCREEN_HEIGHT } );
+    auto contentSize = ImVec2{ SCREEN_WIDTH, SCREEN_HEIGHT };
+    float titleHeight = ImGui::GetTextLineHeight() + ImGui::GetStyle().FramePadding.y * 2.0f;
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowMinSize, { contentSize.x, contentSize.y + titleHeight } );
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0,0 ) );
+    ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
+    ImGui::SetNextWindowContentSize( contentSize );
 
     ImGui::Begin( "Rendering", &debugMode, ImGuiWindowFlags_NoCollapse );
     auto size = ImGui::GetWindowSize();
@@ -446,22 +451,8 @@ void UI::drawMainScreen()
       ImGui::Image( tex, size );
     }
     ImGui::End();
-    ImGui::PopStyleVar();
-  }/*
-  else
-  {
-    ImGui::SetNextWindowPos( ImVec2( 0.0f, 0.0f ) );
-    ImGui::SetNextWindowSize( ImGui::GetIO().DisplaySize );
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowRounding, 0.0f );
-    ImGui::Begin( "Rendering", &debugMode, ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoTitleBar );
-    auto size = ImGui::GetWindowSize();
-    if (auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID())
-    {
-      ImGui::Image( tex, size );
-    }
-    ImGui::End();
-    ImGui::PopStyleVar();
-  }*/
+    ImGui::PopStyleVar(3);
+  }
 }
 
 void UI::drawDebugWindows( ImGuiIO& io )
