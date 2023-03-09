@@ -36,7 +36,7 @@ void CPUEditor::drawRegister( const char* label, uint8_t reg, char* reg_buf )
 
   ImGui::AlignTextToFramePadding();
 
-  ImGui::Text( label );
+  ImGui::Text( "%s", label );
 
   ImGui::SameLine(LABEL_WIDTH);
   ImGui::SetNextItemWidth( ITEM_WIDTH );
@@ -79,7 +79,7 @@ void CPUEditor::drawPS( const char* label, uint16_t ps, char* ps_buf )
 
   ImGui::AlignTextToFramePadding();
 
-  ImGui::Text( label );
+  ImGui::Text( "%s", label );
 
   ImGui::SameLine( LABEL_WIDTH );
   ImGui::SetNextItemWidth( ITEM_WIDTH );
@@ -110,7 +110,7 @@ void CPUEditor::drawFlag( const char* label, bool enabled, bool* b )
   *b = enabled;
   ImGui::AlignTextToFramePadding();
 
-  ImGui::Text( label );
+  ImGui::Text( "%s", label );
   ImGui::SameLine();
   ImGui::Checkbox( mlabel_buf, b );
   if ( ImGui::IsItemClicked() )

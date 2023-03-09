@@ -184,10 +184,10 @@ void BreakpointEditor::drawContents()
 
       ImGui::TableNextColumn();
       snprintf( buffer, 7, "$%04X", item.address );
-      ImGui::Text( buffer );
+      ImGui::Text( "%s", buffer );
 
       ImGui::TableNextColumn();
-      ImGui::Text( breakpointTypeGetDesc( item.type ) );
+      ImGui::Text( "%s", breakpointTypeGetDesc( item.type ) );
     }
     ImGui::EndTable();
   }

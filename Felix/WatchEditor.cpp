@@ -318,23 +318,23 @@ void WatchEditor::drawContents()
       }
 
       ImGui::TableNextColumn();
-      ImGui::Text( item.label );
+      ImGui::Text( "%s", item.label );
 
       ImGui::TableNextColumn();
       snprintf( mDataOutputBuf, 7, "$%04X", item.address );
-      ImGui::Text( mDataOutputBuf );
+      ImGui::Text( "%s", mDataOutputBuf );
 
       ImGui::TableNextColumn();
       drawPreviewData( mDataBuf, sizeof( mDataBuf ), item.type, DataFormat_Hex, mDataOutputBuf, sizeof( mDataOutputBuf ) );
-      ImGui::Text( mDataOutputBuf );
+      ImGui::Text( "%s", mDataOutputBuf );
     
       ImGui::TableNextColumn();
       drawPreviewData( mDataBuf, sizeof( mDataBuf ), item.type, DataFormat_Dec, mDataOutputBuf, sizeof( mDataOutputBuf ) );
-      ImGui::Text( mDataOutputBuf );
+      ImGui::Text( "%s", mDataOutputBuf );
 
       ImGui::TableNextColumn();
       drawPreviewData( mDataBuf, sizeof( mDataBuf ), item.type, DataFormat_Bin, mDataOutputBuf, sizeof( mDataOutputBuf ) );
-      ImGui::Text( mDataOutputBuf );
+      ImGui::Text( "%s", mDataOutputBuf );
     }
     ImGui::EndTable();
   }

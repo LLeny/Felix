@@ -1,5 +1,5 @@
 #pragma once
-
+#include "pch.hpp"
 #include "IMemoryAccessTrap.hpp"
 class Core;
 class ScriptDebuggerEscapes;
@@ -150,6 +150,8 @@ public:
     case Type::SUZY_WRITE:
       mSuzyWriteMask[address] = 0;
       mSuzyWriteTraps[address] = nullptr;
+      break;
+    default:
       break;
     }
   }

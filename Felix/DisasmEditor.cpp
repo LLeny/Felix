@@ -66,7 +66,7 @@ void DisasmEditor::drawTable()
   auto opColor = IM_COL32( 126, 88, 137, 255 );
   auto tableSize = ImGui::GetWindowSize();
   tableSize.y -= ImGuiStyleVar_CellPadding * 3;
-  int itemCount = (tableSize.y / ImGuiStyleVar_CellPadding) + 1;
+  int itemCount = (tableSize.y / (float)ImGuiStyleVar_CellPadding) + 1;
   uint8_t oprLength = 0;
   int prevPC;
 
@@ -113,17 +113,17 @@ void DisasmEditor::drawTable()
     if ( mShowLabelsInAddrCol )
     {
       sprintf( buf, "%s", mManager->mInstance->getTraceHelper()->addressLabel( workingPc ) );
-      ImGui::Text( buf );
+      ImGui::Text( "%s", buf );
       if ( ImGui::IsItemHovered() )
       {
         sprintf( buf+50, "%s ($%04X)", buf, (uint16_t)workingPc );
-        ImGui::SetTooltip( buf+50 );
+        ImGui::SetTooltip( "%s", buf+50 );
       }
     }
     else
     {
       sprintf( buf, "$%04X", (uint16_t)workingPc );
-      ImGui::Text( buf );
+      ImGui::Text( "%s", buf );
     }
     if ( ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked( 0 ) )
     {
@@ -143,15 +143,15 @@ void DisasmEditor::drawTable()
       sprintf( buf + 12 + i * 3, " %02X", ram[prevPC++] );
     }
 
-    ImGui::Text( buf + 10 );
+    ImGui::Text( "%s", buf + 10 );
 
     ImGui::TableNextColumn();
     ImGui::PushStyleColor( ImGuiCol_Text, opColor );
-    ImGui::Text( buf );
+    ImGui::Text( "%s", buf );
     ImGui::PopStyleColor();
 
     ImGui::SameLine();
-    ImGui::Text( buf + 20 );
+    ImGui::Text( "%s", buf + 20 );
 
     if ( workingPc < 0xffff && !itemCount && ImGui::IsItemVisible() )
     {
@@ -170,7 +170,7 @@ void DisasmEditor::drawOptions()
 {
   char addrbuf[5]{};
 
-  ImGui::SetCursorPosY( ImGui::GetWindowHeight() - ImGuiStyleVar_CellPadding - 10 );
+  ImGui::SetCursorPosY( ImGui::GetWindowHeight() - (float)ImGuiStyleVar_CellPadding - 10 );
   ImGui::Separator();
   if ( ImGui::Button( "Options" ) )
   {

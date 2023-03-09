@@ -60,7 +60,7 @@ bool UI::mainMenu( ImGuiIO& io )
 
   auto configureKeyItem = [&] ( char const* name, KeyInput::Key k )
   {
-    ImGui::Text( name );
+    ImGui::Text( "%s", name );
     ImGui::SameLine( 60 );
 
     if ( ImGui::Button( keyName( mManager.userInput().getVirtualCode( k ) ), ImVec2( 100, 0 ) ) )
@@ -421,6 +421,8 @@ bool UI::mainMenu( ImGuiIO& io )
     case OPEN_BOOTROM:
       sysConfig->bootROM.path = mFileBrowser->GetSelected();
       break;
+    default:
+      break;
     }
     mFileBrowser->ClearSelected();
     fileBrowserAction = NONE;
@@ -671,7 +673,7 @@ void UI::configureKeyWindow( std::optional<KeyInput::Key>& keyToConfigure )
       {
         code = c;
       }
-      ImGui::Text( keyName( code ) );
+      ImGui::Text( "%s", keyName( code ) );
       ImGui::TableNextRow();
       ImGui::TableNextColumn();
       if ( ImGui::Button( "OK", ImVec2( 60, 0 ) ) )
