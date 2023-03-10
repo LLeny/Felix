@@ -711,26 +711,15 @@ void VulkanRenderer::prepareTextureTarget( VulkanTexture *tex, VkFormat format, 
 
   flushCommandBuffer( layoutCmd, mQueue, mCommandPool, true );
 
-  VkSamplerCreateInfo sampler = vkinit::sampler_create_info( VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER );
-  sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  sampler.mipLodBias = 0.0f;
-  sampler.maxAnisotropy = 1.0f;
-  sampler.compareOp = VK_COMPARE_OP_NEVER;
-  sampler.minLod = 0.0f;
-  sampler.maxLod = tex->mMipLevels;
-  sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-  VK_CHECK( vkCreateSampler( mDevice, &sampler, nullptr, &tex->mSampler ) );
-
   VkImageViewCreateInfo view = vkinit::imageview_create_info( format, tex->mImage, 0 );
   view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
   VK_CHECK( vkCreateImageView( mDevice, &view, nullptr, &tex->mView ) );
 
   tex->mDescriptor.imageLayout = tex->mImageLayout;
   tex->mDescriptor.imageView = tex->mView;
-  tex->mDescriptor.sampler = tex->mSampler;
   tex->mDevice = mDevice;
 
-  tex->mDS = ImGui_ImplVulkan_AddTexture( tex->mSampler, tex->mView, VK_IMAGE_LAYOUT_GENERAL );
+  tex->mDS = ImGui_ImplVulkan_AddTexture( nullptr, tex->mView, VK_IMAGE_LAYOUT_GENERAL );
 }
 
 bool VulkanRenderer::shouldClose()
