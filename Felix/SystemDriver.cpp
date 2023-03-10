@@ -64,7 +64,8 @@ void SystemDriver::initialize()
   mIntputSource = std::make_shared<UserInput>();
 
   mRenderer->initialize();
-  mRenderer->registerFileDropCallback( std::bind( &SystemDriver::handleFileDrop, this, std::placeholders::_1  ) );
+  mRenderer->registerFileDropCallback( [&]( std::filesystem::path path ) { this->handleFileDrop( path ); } );
+  mRenderer->registerKeyEventCallback( [&]( int key, bool pressed ) { this->handleKeyEvent( key, pressed ); } );
 }
 
 int SystemDriver::eventLoop( Manager &m )
@@ -176,4 +177,16 @@ void SystemDriver::handleFileDrop( std::filesystem::path file )
   {
     mDropFilesHandler( std::move( file ) );
   }
+}
+
+void SystemDriver::handleKeyEvent( int key, bool pressed )
+{
+  if( pressed )
+  {
+    mIntputSource->keyDown(key);
+  }
+  else
+  {
+    mIntputSource->keyUp(key);
+  }  
 }

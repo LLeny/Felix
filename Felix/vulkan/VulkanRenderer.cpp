@@ -326,6 +326,27 @@ void VulkanRenderer::initialize()
     self->mFileDropCallback( path );
   } );
 
+  glfwSetKeyCallback( mMainWindow, [] (GLFWwindow* window, int key, int scancode, int action, int mods)
+  {
+    auto self = static_cast<VulkanRenderer*>( glfwGetWindowUserPointer( window ) );
+    if( !self->mKeyEventCallback )
+    {
+      return;
+    }
+
+    switch( action )
+    {
+      case GLFW_PRESS:
+        self->mKeyEventCallback( key, true );
+        break;
+      case GLFW_RELEASE:
+        self->mKeyEventCallback( key, false );
+        break;
+      default:
+        break;
+    }
+  });
+
   uint32_t extensions_count = 0;
   const char **extensions = glfwGetRequiredInstanceExtensions( &extensions_count );
   setupVulkan( extensions, extensions_count );
@@ -766,4 +787,9 @@ void VulkanRenderer::renderImGui( UI &ui )
 void VulkanRenderer::registerFileDropCallback( std::function<void( std::filesystem::path )> callback )
 {
   mFileDropCallback = std::move( callback );
+}
+
+void VulkanRenderer::registerKeyEventCallback( std::function<void( int, bool )> callback )
+{
+  mKeyEventCallback = std::move( callback );
 }

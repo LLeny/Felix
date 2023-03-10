@@ -63,7 +63,15 @@ bool UI::mainMenu( ImGuiIO& io )
     ImGui::Text( "%s", name );
     ImGui::SameLine( 60 );
 
-    if ( ImGui::Button( keyName( mManager.userInput().getVirtualCode( k ) ), ImVec2( 100, 0 ) ) )
+    auto keyN = keyName ( mManager.userInput().getVirtualCode( k ) );
+
+    if ( !keyN )
+    {
+      L_ERROR << "Unknown key code: " << k;
+      keyN = "Error";
+    }
+
+    if ( ImGui::Button( keyN, ImVec2( 100, 0 ) ) )
     {
       keyToConfigure = k;
       ImGui::OpenPopup( "Configure Key" );

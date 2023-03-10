@@ -18,5 +18,5 @@ public:
   virtual std::shared_ptr<IVideoSink> getVideoSink() = 0;
   virtual ImTextureID getMainScreenTextureID() = 0;
   virtual void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) = 0;
-
+  virtual void registerKeyEventCallback( std::function<void( int, bool )> callback ) = 0;
 };

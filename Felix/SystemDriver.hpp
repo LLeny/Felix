@@ -30,6 +30,7 @@ public:
 
 private:
   void handleFileDrop( std::filesystem::path path );
+  void handleKeyEvent( int key, bool pressed  );
 
   friend std::shared_ptr<ISystemDriver> createSystemDriver( Manager& manager, CommandLineParser::CommandLineOptions &options, int nCmdShow );
 

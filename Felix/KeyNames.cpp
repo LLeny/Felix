@@ -11,7 +11,7 @@ namespace
     KeyNames();
     char const* name( uint32_t key ) const;
   private:
-    std::array<char const*, 256> mNames;
+    std::array<char const*, GLFW_KEY_LAST> mNames;
   };
 
   KeyNames::KeyNames() : mNames{}
@@ -37,42 +37,42 @@ namespace
     mNames[GLFW_KEY_PRINT_SCREEN] = "Print Screen";
     mNames[GLFW_KEY_INSERT] = "Insert";
     mNames[GLFW_KEY_DELETE] = "Delete";
-    mNames['0'] = "0";
-    mNames['1'] = "1";
-    mNames['2'] = "2";
-    mNames['3'] = "3";
-    mNames['4'] = "4";
-    mNames['5'] = "5";
-    mNames['6'] = "6";
-    mNames['7'] = "7";
-    mNames['8'] = "8";
-    mNames['9'] = "9";
-    mNames['A'] = "A";
-    mNames['B'] = "B";
-    mNames['C'] = "C";
-    mNames['D'] = "D";
-    mNames['E'] = "E";
-    mNames['F'] = "F";
-    mNames['G'] = "G";
-    mNames['H'] = "H";
-    mNames['I'] = "I";
-    mNames['J'] = "J";
-    mNames['K'] = "K";
-    mNames['L'] = "L";
-    mNames['M'] = "M";
-    mNames['N'] = "N";
-    mNames['O'] = "O";
-    mNames['P'] = "P";
-    mNames['Q'] = "Q";
-    mNames['R'] = "R";
-    mNames['S'] = "S";
-    mNames['T'] = "T";
-    mNames['U'] = "U";
-    mNames['V'] = "V";
-    mNames['W'] = "W";
-    mNames['X'] = "X";
-    mNames['Y'] = "Y";
-    mNames['Z'] = "Z";
+    mNames[GLFW_KEY_0] = "0";
+    mNames[GLFW_KEY_1] = "1";
+    mNames[GLFW_KEY_2] = "2";
+    mNames[GLFW_KEY_3] = "3";
+    mNames[GLFW_KEY_4] = "4";
+    mNames[GLFW_KEY_5] = "5";
+    mNames[GLFW_KEY_6] = "6";
+    mNames[GLFW_KEY_7] = "7";
+    mNames[GLFW_KEY_8] = "8";
+    mNames[GLFW_KEY_9] = "9";
+    mNames[GLFW_KEY_A] = "A";
+    mNames[GLFW_KEY_B] = "B";
+    mNames[GLFW_KEY_C] = "C";
+    mNames[GLFW_KEY_D] = "D";
+    mNames[GLFW_KEY_E] = "E";
+    mNames[GLFW_KEY_F] = "F";
+    mNames[GLFW_KEY_G] = "G";
+    mNames[GLFW_KEY_H] = "H";
+    mNames[GLFW_KEY_I] = "I";
+    mNames[GLFW_KEY_J] = "J";
+    mNames[GLFW_KEY_K] = "K";
+    mNames[GLFW_KEY_L] = "L";
+    mNames[GLFW_KEY_M] = "M";
+    mNames[GLFW_KEY_N] = "N";
+    mNames[GLFW_KEY_O] = "O";
+    mNames[GLFW_KEY_P] = "P";
+    mNames[GLFW_KEY_Q] = "Q";
+    mNames[GLFW_KEY_R] = "R";
+    mNames[GLFW_KEY_S] = "S";
+    mNames[GLFW_KEY_T] = "T";
+    mNames[GLFW_KEY_U] = "U";
+    mNames[GLFW_KEY_V] = "V";
+    mNames[GLFW_KEY_W] = "W";
+    mNames[GLFW_KEY_X] = "X";
+    mNames[GLFW_KEY_Y] = "Y";
+    mNames[GLFW_KEY_Z] = "Z";
     mNames[GLFW_KEY_LEFT_SUPER] = "Left Win";
     mNames[GLFW_KEY_RIGHT_SUPER] = "Right Win";
     mNames[GLFW_KEY_KP_0] = "Numpad 0";
@@ -126,9 +126,16 @@ namespace
 
   char const* KeyNames::name( uint32_t key ) const
   {
-    return key < mNames.size() ? mNames[key] : nullptr;
+    if( key < mNames.size() )
+    {
+      return mNames[key];
+    }
+    else
+    {
+      L_ERROR << "Unknown KeyName: " << key;
+      return nullptr;
+    }
   }
-
 }
 
 char const* keyName( uint32_t key )

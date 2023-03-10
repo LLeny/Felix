@@ -67,6 +67,7 @@ public:
   void setTitle( std::string title ) override;
   std::shared_ptr<IVideoSink> getVideoSink() override;
   void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) override;
+  void registerKeyEventCallback( std::function<void( int, bool )> callback ) override;
 
 private:
   void setupVulkan( const char **extensions, uint32_t extensions_count );
@@ -80,7 +81,7 @@ private:
   void prepareTextureTarget( VulkanTexture *tex, VkFormat format, uint32_t width, uint32_t height );
 
   void prepareCompute();
-  void buildComputeCommandBuffer();
+  void buildComputeCommandBuffer(); 
   VkPipelineShaderStageCreateInfo loadShader( std::string fileName, VkShaderStageFlagBits stage );
 
 #if defined( VKB_DEBUG )
@@ -95,6 +96,7 @@ private:
   ImTextureID getMainScreenTextureID() override;
 
   std::function<void( std::filesystem::path )> mFileDropCallback = {};
+  std::function<void( int, bool )> mKeyEventCallback = {};
 
   vkb::Device mVkbDevice;
   VkInstance mInstance = VK_NULL_HANDLE;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "imgui.h"
+#include <GLFW/glfw3.h>
 
 struct SysConfig
 {
@@ -19,15 +20,15 @@ struct SysConfig
   } bootROM;
   struct KeyMapping
   {
-    int pause = ImGuiKey_2;
-    int down = ImGuiKey_DownArrow;
-    int up = ImGuiKey_UpArrow;
-    int right = ImGuiKey_RightArrow;
-    int left = ImGuiKey_LeftArrow;
-    int option1 = ImGuiKey_1;
-    int option2 = ImGuiKey_3;
-    int inner = ImGuiKey_Z;
-    int outer = ImGuiKey_X;
+    int pause = GLFW_KEY_2;
+    int down = GLFW_KEY_DOWN;
+    int up = GLFW_KEY_UP;
+    int right = GLFW_KEY_RIGHT;
+    int left = GLFW_KEY_LEFT;
+    int option1 = GLFW_KEY_1;
+    int option2 = GLFW_KEY_3;
+    int inner = GLFW_KEY_Z;
+    int outer = GLFW_KEY_X;
   } keyMapping;
   std::filesystem::path lastOpenDirectory{};
   bool debugMode;
