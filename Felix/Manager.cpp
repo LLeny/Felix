@@ -49,8 +49,7 @@ mDebugWindows{}
     {
       if ( mProcessThreads.load() && mSystemDriver )
       {
-        // TODO
-        //auto renderingTime = mSystemDriver->renderer()->render(mUI);
+        auto renderingTime = mSystemDriver->renderer()->render(mUI);
         std::scoped_lock<std::mutex> l{ mMutex };
         mRenderingTime = mSystemDriver->mRenderingTime;
       }
