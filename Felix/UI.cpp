@@ -1,22 +1,20 @@
 #include "pch.hpp"
 #include "UI.hpp"
-#include "imgui.h"
-#include "IInputSource.hpp"
-#include "Manager.hpp"
-#include "KeyNames.hpp"
-#include "UserInput.hpp"
-#include "ConfigProvider.hpp"
-#include <imfilebrowser.h>
 #include "AudioOut.hpp"
-#include "Core.hpp"
 #include "CPU.hpp"
-#include "SysConfig.hpp"
+#include "ConfigProvider.hpp"
+#include "Core.hpp"
+#include "IInputSource.hpp"
 #include "ISystemDriver.hpp"
+#include "KeyNames.hpp"
+#include "Manager.hpp"
+#include "SysConfig.hpp"
+#include "UserInput.hpp"
+#include "imgui.h"
+#include <imfilebrowser.h>
 
-UI::UI( Manager& manager ) :
-  mManager{ manager },
-  mOpenMenu{},
-  mFileBrowser{ std::make_unique<ImGui::FileBrowser>() }
+
+UI::UI( Manager &manager ) : mManager{ manager }, mOpenMenu{}, mFileBrowser{ std::make_unique<ImGui::FileBrowser>() }
 {
 }
 
@@ -26,9 +24,9 @@ UI::~UI()
 
 void UI::drawGui( int left, int top, int right, int bottom )
 {
-  ImGuiIO& io = ImGui::GetIO();
+  ImGuiIO &io = ImGui::GetIO();
 
-  bool hovered = io.MousePos.x > 0 && io.MousePos.y > 0 && io.MousePos.x < right&& io.MousePos.y < bottom;
+  bool hovered = io.MousePos.x > 0 && io.MousePos.y > 0 && io.MousePos.x < right && io.MousePos.y < bottom;
 
   if ( hovered || mOpenMenu )
   {
@@ -39,7 +37,7 @@ void UI::drawGui( int left, int top, int right, int bottom )
   drawDebugWindows( io );
 }
 
-bool UI::mainMenu( ImGuiIO& io )
+bool UI::mainMenu( ImGuiIO &io )
 {
   enum class FileBrowserAction
   {
@@ -58,12 +56,11 @@ bool UI::mainMenu( ImGuiIO& io )
   static FileBrowserAction fileBrowserAction = FileBrowserAction::NONE;
   static std::optional<KeyInput::Key> keyToConfigure;
 
-  auto configureKeyItem = [&] ( char const* name, KeyInput::Key k )
-  {
+  auto configureKeyItem = [&]( char const *name, KeyInput::Key k ) {
     ImGui::Text( "%s", name );
     ImGui::SameLine( 60 );
 
-    auto keyN = keyName ( mManager.userInput().getVirtualCode( k ) );
+    auto keyN = keyName( mManager.userInput().getVirtualCode( k ) );
 
     if ( !keyN )
     {
@@ -115,7 +112,6 @@ bool UI::mainMenu( ImGuiIO& io )
     stepOutIssued = true;
   }
 
-
   ImGui::PushStyleVar( ImGuiStyleVar_Alpha, mOpenMenu ? 1.0f : std::clamp( ( 100.0f - io.MousePos.y ) / 100.f, 0.0f, 1.0f ) );
   if ( ImGui::BeginMainMenuBar() )
   {
@@ -161,7 +157,7 @@ bool UI::mainMenu( ImGuiIO& io )
       }
       ImGui::EndMenu();
     }
-    //if ( mManager.mExtendedRenderer )
+    // if ( mManager.mExtendedRenderer )
     {
       ImGui::BeginDisabled( !(bool)mManager.mInstance );
       if ( ImGui::BeginMenu( "Debug" ) )
@@ -411,7 +407,6 @@ bool UI::mainMenu( ImGuiIO& io )
 
   modalWindow = ModalWindow::NONE;
 
-
   mFileBrowser->Display();
   if ( mFileBrowser->HasSelected() )
   {
@@ -443,27 +438,53 @@ void UI::drawMainScreen()
 {
   bool debugMode = mManager.mDebugger.isDebugMode();
 
-  if (debugMode)
+  if ( !debugMode || !mManager.mImageProperties )
   {
-    auto contentSize = ImVec2{ SCREEN_WIDTH, SCREEN_HEIGHT };
-    float titleHeight = ImGui::GetTextLineHeight() + ImGui::GetStyle().FramePadding.y * 2.0f;
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowMinSize, { contentSize.x, contentSize.y + titleHeight } );
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, ImVec2( 0,0 ) );
-    ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
-    ImGui::SetNextWindowContentSize( contentSize );
-
-    ImGui::Begin( "Rendering", &debugMode, ImGuiWindowFlags_NoCollapse );
-    auto size = ImGui::GetWindowSize();
-    if (auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID())
-    {
-      ImGui::Image( tex, size );
-    }
-    ImGui::End();
-    ImGui::PopStyleVar(3);
+    return;
   }
+
+  ImVec2 contentSize;
+
+  if ( (int)mManager.mImageProperties->getRotation() )
+  {
+    contentSize = ImVec2{ SCREEN_HEIGHT, SCREEN_WIDTH };
+  }
+  else
+  {
+    contentSize = ImVec2{ SCREEN_WIDTH, SCREEN_HEIGHT };
+  }
+
+  float titleHeight = ImGui::GetFrameHeight();
+  float ratio = contentSize.x / contentSize.y;
+
+  ImGui::PushStyleVar( ImGuiStyleVar_WindowMinSize, { contentSize.x, contentSize.y + titleHeight } );
+  ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, { 0, 0 } );
+  ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
+
+  ImGui::Begin( "Rendering", &debugMode, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar );
+  if ( auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID() )
+  {
+    auto size = ImGui::GetWindowSize();
+    ImVec2 tgtSize( size.x, size.y - titleHeight );
+
+    if ( ratio >= 1 )
+    {
+      tgtSize.x = IM_MAX( tgtSize.x, tgtSize.y );
+      tgtSize.y = (float)(int)( tgtSize.x / ratio );
+    }
+    else
+    {
+      tgtSize.x = IM_MIN( tgtSize.x, tgtSize.y );
+      tgtSize.y = (float)(int)( tgtSize.x / ratio );
+    }
+
+    ImGui::Image( tex, { tgtSize.x, tgtSize.y } );
+  }
+  ImGui::End();
+  ImGui::PopStyleVar( 3 );
 }
 
-void UI::drawDebugWindows( ImGuiIO& io )
+void UI::drawDebugWindows( ImGuiIO &io )
 {
   std::unique_lock<std::mutex> l{ mManager.mDebugger.mutex };
 
@@ -517,7 +538,7 @@ void UI::drawDebugWindows( ImGuiIO& io )
     }
 
     std::vector<int> removedIds;
-    for ( auto& sv : mManager.mDebugger.screenViews() )
+    for ( auto &sv : mManager.mDebugger.screenViews() )
     {
       static const float xpad = 4.0f;
       static const float ypad = ( 4.0f + 19.0f ) * 2;
@@ -528,9 +549,11 @@ void UI::drawDebugWindows( ImGuiIO& io )
       bool open = true;
       ImGui::Begin( buf, &open, 0 );
       if ( !open )
+      {
         removedIds.push_back( sv.id );
+      }
       ImGui::SetNextItemWidth( 80 );
-      ImGui::Combo( "##sv", (int*)&sv.type, "dispadr\0vidbase\0collbas\0custom\0" );
+      ImGui::Combo( "##sv", (int *)&sv.type, "dispadr\0vidbase\0collbas\0custom\0" );
       ImGui::SameLine();
       std::span<uint8_t const> data{};
       std::span<uint8_t const> palette{};
@@ -545,7 +568,9 @@ void UI::drawDebugWindows( ImGuiIO& io )
           std::sprintf( buf, "%04x", addr );
           data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
           if ( !sv.safePalette )
+          {
             palette = mManager.mInstance->debugPalette();
+          }
         }
         break;
       case ScreenViewType::VIDBAS:
@@ -556,7 +581,9 @@ void UI::drawDebugWindows( ImGuiIO& io )
           std::sprintf( buf, "%04x", addr );
           data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
           if ( !sv.safePalette )
+          {
             palette = mManager.mInstance->debugPalette();
+          }
         }
         break;
       case ScreenViewType::COLLBAS:
@@ -567,10 +594,12 @@ void UI::drawDebugWindows( ImGuiIO& io )
           std::sprintf( buf, "%04x", addr );
           data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
           if ( !sv.safePalette )
+          {
             palette = mManager.mInstance->debugPalette();
+          }
         }
         break;
-      default:  //ScreenViewType::CUSTOM:
+      default: // ScreenViewType::CUSTOM:
         ImGui::BeginDisabled( false );
         if ( mManager.mInstance )
         {
@@ -578,7 +607,9 @@ void UI::drawDebugWindows( ImGuiIO& io )
           std::sprintf( buf, "%04x", sv.customAddress );
           data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + sv.customAddress, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
           if ( !sv.safePalette )
+          {
             palette = mManager.mInstance->debugPalette();
+          }
         }
         break;
       }
@@ -597,15 +628,15 @@ void UI::drawDebugWindows( ImGuiIO& io )
       size.x = std::max( 0.0f, size.x - xpad );
       size.y = std::max( 0.0f, size.y - ypad );
 
-      //auto it = std::ranges::find( mManager.mDebugWindows.customScreenViews, sv.id, [] ( auto const& p ) { return p.first; } );
-      //if ( it != mManager.mDebugWindows.customScreenViews.cend() )
+      // auto it = std::ranges::find( mManager.mDebugWindows.customScreenViews, sv.id, [] ( auto const& p ) { return p.first; } );
+      // if ( it != mManager.mDebugWindows.customScreenViews.cend() )
       //{
-      //  if ( auto tex = it->second->render( data, palette ) )
-      //  {
-      //    ImGui::Image( tex, size );
-      //  }
-      //  it->second->resize( (int)size.x, (int)size.y );
-      //}
+      //   if ( auto tex = it->second->render( data, palette ) )
+      //   {
+      //     ImGui::Image( tex, size );
+      //   }
+      //   it->second->resize( (int)size.x, (int)size.y );
+      // }
 
       ImGui::End();
       ImGui::PopStyleVar();
@@ -618,7 +649,6 @@ void UI::drawDebugWindows( ImGuiIO& io )
 
     mManager.mDebugger.debugMode( debugMode );
     ImGui::PopStyleVar();
-
 
     if ( ImGui::BeginPopupContextVoid() )
     {
@@ -647,7 +677,7 @@ void UI::drawDebugWindows( ImGuiIO& io )
   }
 }
 
-void UI::configureKeyWindow( std::optional<KeyInput::Key>& keyToConfigure )
+void UI::configureKeyWindow( std::optional<KeyInput::Key> &keyToConfigure )
 {
   if ( ImGui::BeginPopupModal( "Configure Key", NULL, ImGuiWindowFlags_AlwaysAutoResize ) )
   {
@@ -709,19 +739,22 @@ void UI::imagePropertiesWindow( bool init )
       eeprom = mManager.mImageProperties->getEEPROM();
     }
 
-    auto isChanged = [&]
-    {
+    auto isChanged = [&] {
       if ( rotation != (int)mManager.mImageProperties->getRotation() )
+      {
         return true;
+      }
       if ( eeprom.bits != mManager.mImageProperties->getEEPROM().bits )
+      {
         return true;
+      }
 
       return false;
     };
 
     auto cartName = mManager.mImageProperties->getCartridgeName();
     auto manufName = mManager.mImageProperties->getMamufacturerName();
-    auto const& bankProps = mManager.mImageProperties->getBankProps();
+    auto const &bankProps = mManager.mImageProperties->getBankProps();
     ImGui::TextUnformatted( "Cart Name:" );
     ImGui::SameLine();
     ImGui::TextUnformatted( cartName.data(), cartName.data() + cartName.size() );
@@ -815,5 +848,3 @@ void UI::imagePropertiesWindow( bool init )
     ImGui::EndPopup();
   }
 }
-
-

@@ -23,17 +23,18 @@
 #include "../UI.hpp"
 #include "../VideoSink.hpp"
 #include "../version.hpp"
+#include "ImageProperties.hpp"
 #include "Utility.hpp"
 
-#define VK_CHECK( x )                                    \
-  do                                                     \
-  {                                                      \
-    VkResult err = x;                                    \
-    if ( err )                                           \
-    {                                                    \
-      L_ERROR << "Detected Vulkan error: " << err;       \
-      abort();                                           \
-    }                                                    \
+#define VK_CHECK( x )                                                                                                                                                                                                                                                                                                                                                  \
+  do                                                                                                                                                                                                                                                                                                                                                                   \
+  {                                                                                                                                                                                                                                                                                                                                                                    \
+    VkResult err = x;                                                                                                                                                                                                                                                                                                                                                  \
+    if ( err )                                                                                                                                                                                                                                                                                                                                                         \
+    {                                                                                                                                                                                                                                                                                                                                                                  \
+      L_ERROR << "Detected Vulkan error: " << err;                                                                                                                                                                                                                                                                                                                     \
+      abort();                                                                                                                                                                                                                                                                                                                                                         \
+    }                                                                                                                                                                                                                                                                                                                                                                  \
   } while ( 0 )
 
 struct DeletionQueue
@@ -55,6 +56,13 @@ struct DeletionQueue
   }
 };
 
+typedef struct LynxScreen
+{
+  uint8_t mBuffer[SCREEN_BUFFER_SIZE];
+  uint8_t mPalette[32];
+  ImageProperties::Rotation mRotation;
+} LynxScreen;
+
 class VulkanRenderer : public IRenderer
 {
 public:
@@ -68,6 +76,7 @@ public:
   std::shared_ptr<IVideoSink> getVideoSink() override;
   void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) override;
   void registerKeyEventCallback( std::function<void( int, bool )> callback ) override;
+  void setRotation( ImageProperties::Rotation rotation ) override;
 
 private:
   void setupVulkan( const char **extensions, uint32_t extensions_count );
@@ -78,10 +87,13 @@ private:
   VkCommandBuffer createCommandBuffer( VkCommandBufferLevel level, VkCommandPool pool, bool begin );
   void flushCommandBuffer( VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free );
   void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT );
-  void prepareTextureTarget( VulkanTexture *tex, VkFormat format, uint32_t width, uint32_t height );
+  void prepareTextureTarget( VulkanTexture *tex, VkFormat format );
+  void destroyTexture( VulkanTexture *tex );
 
   void prepareCompute();
-  void buildComputeCommandBuffer(); 
+  void destroyCompute();
+  void buildComputeCommandBuffer();
+  void destroyComputeCommandBuffer();
   VkPipelineShaderStageCreateInfo loadShader( std::string fileName, VkShaderStageFlagBits stage );
 
 #if defined( VKB_DEBUG )
@@ -123,12 +135,13 @@ private:
   bool mSwapChainRebuild = false;
 
   std::shared_ptr<VideoSink> mVideoSink;
-  VmaAllocationInfo mLynxPaletteAllocationInfo = {};
   VmaAllocationInfo mLynxScreenAllocationInfo = {};
+  VmaAllocation mLynxScreenAllocation = {};
 
   VulkanTexture mMainScreenTexture = {};
   AllocatedBuffer mMainScreenBuffer = {};
-  AllocatedBuffer mPaletteBuffer = {};
+  LynxScreen mMainScreen = {};
+  ImageProperties::Rotation mRotation = {};
 
   struct Compute
   {

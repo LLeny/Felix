@@ -61,6 +61,7 @@ add_subdirectory( "libFelix" )
 
 file ( GLOB_RECURSE felix_SOURCES CONFIGURE_DEPENDS 
     "Felix/*.cpp" 
+    "Felix/shaders/*.spv" 
     "libextern/imgui/imgui.cpp"
     "libextern/imgui/imgui_draw.cpp"
     "libextern/imgui/imgui_tables.cpp"
@@ -107,7 +108,9 @@ target_link_libraries( ${PROJECT_NAME}
     libFelix
     lua
     )
-    
-add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+
+add_custom_command(
+    OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/lynx_render.comp.spv"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
+    MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv"
 )

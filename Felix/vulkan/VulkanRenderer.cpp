@@ -1,4 +1,3 @@
-
 #include "pch.hpp"
 #include "VulkanRenderer.hpp"
 #include <vulkan/vulkan.h>
@@ -157,17 +156,7 @@ void VulkanRenderer::setupVulkan( const char **extensions, uint32_t extensions_c
   } );
 
   mMainDeletionQueue.push_function( [&]() { mMainScreenTexture.destroy(); } );
-
-  mMainDeletionQueue.push_function( [&]() {
-    for ( auto &pipeline : mCompute.pipelines )
-    {
-      vkDestroyPipeline( mDevice, pipeline, nullptr );
-    }
-    vkDestroyPipelineLayout( mDevice, mCompute.pipelineLayout, nullptr );
-    vkDestroyDescriptorSetLayout( mDevice, mCompute.descriptorSetLayout, nullptr );
-    vkDestroySemaphore( mDevice, mCompute.semaphore, nullptr );
-    vkDestroyCommandPool( mDevice, mCompute.commandPool, nullptr );
-  } );
+  mMainDeletionQueue.push_function( [&]() { destroyCompute(); } );
 }
 
 void VulkanRenderer::setupVulkanWindow( ImGui_ImplVulkanH_Window *wd, VkSurfaceKHR surface, int width, int height )
@@ -280,10 +269,7 @@ void VulkanRenderer::framePresent( ImGui_ImplVulkanH_Window *wd )
 
 void VulkanRenderer::initialize()
 {
-  glfwSetErrorCallback( [](int error, const char *description) 
-  {
-    L_ERROR << "GLFW Error " << error << ": " << description;
-  });
+  glfwSetErrorCallback( []( int error, const char *description ) { L_ERROR << "GLFW Error " << error << ": " << description; } );
 
   if ( !glfwInit() )
   {
@@ -300,24 +286,23 @@ void VulkanRenderer::initialize()
 
   glfwSetWindowUserPointer( mMainWindow, this );
 
-  glfwSetDropCallback( mMainWindow, [](GLFWwindow *window, int count, const char **paths)
-  {
-    if( count != 1 )
+  glfwSetDropCallback( mMainWindow, []( GLFWwindow *window, int count, const char **paths ) {
+    if ( count != 1 )
     {
       return;
     }
 
-    auto self = static_cast<VulkanRenderer*>( glfwGetWindowUserPointer( window ) );
-    if( !self->mFileDropCallback )
+    auto self = static_cast<VulkanRenderer *>( glfwGetWindowUserPointer( window ) );
+    if ( !self->mFileDropCallback )
     {
       return;
     }
-    
+
     std::filesystem::path path( paths[0] );
 
     L_INFO << "VulkanRenderer - dropped '" << path << "'";
 
-    if( !std::filesystem::exists( path ) )
+    if ( !std::filesystem::exists( path ) )
     {
       L_INFO << "VulkanRenderer - '" << path << "' doesn't exist...";
       return;
@@ -326,26 +311,25 @@ void VulkanRenderer::initialize()
     self->mFileDropCallback( path );
   } );
 
-  glfwSetKeyCallback( mMainWindow, [] (GLFWwindow* window, int key, int scancode, int action, int mods)
-  {
-    auto self = static_cast<VulkanRenderer*>( glfwGetWindowUserPointer( window ) );
-    if( !self->mKeyEventCallback )
+  glfwSetKeyCallback( mMainWindow, []( GLFWwindow *window, int key, int scancode, int action, int mods ) {
+    auto self = static_cast<VulkanRenderer *>( glfwGetWindowUserPointer( window ) );
+    if ( !self->mKeyEventCallback )
     {
       return;
     }
 
-    switch( action )
+    switch ( action )
     {
-      case GLFW_PRESS:
-        self->mKeyEventCallback( key, true );
-        break;
-      case GLFW_RELEASE:
-        self->mKeyEventCallback( key, false );
-        break;
-      default:
-        break;
+    case GLFW_PRESS:
+      self->mKeyEventCallback( key, true );
+      break;
+    case GLFW_RELEASE:
+      self->mKeyEventCallback( key, false );
+      break;
+    default:
+      break;
     }
-  });
+  } );
 
   uint32_t extensions_count = 0;
   const char **extensions = glfwGetRequiredInstanceExtensions( &extensions_count );
@@ -403,9 +387,6 @@ void VulkanRenderer::initialize()
 
   VK_CHECK( vkDeviceWaitIdle( mDevice ) );
   ImGui_ImplVulkan_DestroyFontUploadObjects();
-
-  prepareTextureTarget( &mMainScreenTexture, VK_FORMAT_R8G8B8A8_UNORM, SCREEN_WIDTH, SCREEN_HEIGHT );
-  prepareCompute();
 }
 
 void VulkanRenderer::terminate()
@@ -432,9 +413,10 @@ int64_t VulkanRenderer::render( UI &ui )
 void VulkanRenderer::renderMainScreen()
 {
   if ( auto frame = mVideoSink->pullNextFrame() )
-  { 
-    memcpy( mLynxScreenAllocationInfo.pMappedData, frame->data(), frame->size() );
-    memcpy( mLynxPaletteAllocationInfo.pMappedData, mVideoSink->getPalettePointer(), 32 );
+  {
+    memcpy( ( (LynxScreen *)mLynxScreenAllocationInfo.pMappedData )->mBuffer, frame->data(), SCREEN_BUFFER_SIZE );
+    memcpy( ( (LynxScreen *)mLynxScreenAllocationInfo.pMappedData )->mPalette, mVideoSink->getPalettePointer(), 32 );
+    ( (LynxScreen *)mLynxScreenAllocationInfo.pMappedData )->mRotation = mRotation;
   }
 }
 
@@ -487,9 +469,14 @@ void VulkanRenderer::buildComputeCommandBuffer()
   vkCmdBindPipeline( mCompute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, mCompute.pipelines[mCompute.pipelineIndex] );
   vkCmdBindDescriptorSets( mCompute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, mCompute.pipelineLayout, 0, 1, &mCompute.descriptorSet, 0, 0 );
 
-  vkCmdDispatch( mCompute.commandBuffer, mMainScreenTexture.mWidth / 16, mMainScreenTexture.mHeight / 16, 1 );
+  vkCmdDispatch( mCompute.commandBuffer, SCREEN_WIDTH / 16, SCREEN_HEIGHT / 16, 1 );
 
   vkEndCommandBuffer( mCompute.commandBuffer );
+}
+
+void VulkanRenderer::destroyComputeCommandBuffer()
+{
+  vkFreeCommandBuffers( mDevice, mCompute.commandPool, 1, &mCompute.commandBuffer );
 }
 
 void VulkanRenderer::prepareCompute()
@@ -514,7 +501,7 @@ void VulkanRenderer::prepareCompute()
   VkBufferCreateInfo screenbufferInfo = {};
   screenbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
   screenbufferInfo.pNext = nullptr;
-  screenbufferInfo.size = SCREEN_BUFFER_SIZE;
+  screenbufferInfo.size = sizeof( LynxScreen );
   screenbufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
   VmaAllocationCreateInfo screenvmaallocInfo = {};
   screenvmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
@@ -523,25 +510,9 @@ void VulkanRenderer::prepareCompute()
   VkDescriptorBufferInfo screenbinfo;
   screenbinfo.buffer = mMainScreenBuffer._buffer;
   screenbinfo.offset = 0;
-  screenbinfo.range = SCREEN_BUFFER_SIZE;
+  screenbinfo.range = sizeof( LynxScreen );
 
-  VkBufferCreateInfo palettebufferInfo = {};
-  palettebufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-  palettebufferInfo.pNext = nullptr;
-  palettebufferInfo.size = 32;
-  palettebufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-  VmaAllocationCreateInfo palettevmaallocInfo = {};
-  palettevmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-  palettevmaallocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-  VK_CHECK( vmaCreateBuffer( mAllocator, &palettebufferInfo, &palettevmaallocInfo, &mPaletteBuffer._buffer, &mPaletteBuffer._allocation, &mLynxPaletteAllocationInfo ) );
-  VkDescriptorBufferInfo palettebinfo;
-  palettebinfo.buffer = mPaletteBuffer._buffer;
-  palettebinfo.offset = 0;
-  palettebinfo.range = 32;
-
-  std::vector<VkWriteDescriptorSet> computeWriteDescriptorSets = { vkinit::write_descriptor_buffer( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, mCompute.descriptorSet, &screenbinfo, 0 ),
-                                                                   vkinit::write_descriptor_buffer( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, mCompute.descriptorSet, &palettebinfo, 1 ),
-                                                                   vkinit::write_descriptor_image( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, mCompute.descriptorSet, &mMainScreenTexture.mDescriptor, 2 ) };
+  std::vector<VkWriteDescriptorSet> computeWriteDescriptorSets = { vkinit::write_descriptor_buffer( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, mCompute.descriptorSet, &screenbinfo, 0 ), vkinit::write_descriptor_image( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, mCompute.descriptorSet, &mMainScreenTexture.mDescriptor, 1 ) };
   vkUpdateDescriptorSets( mDevice, computeWriteDescriptorSets.size(), computeWriteDescriptorSets.data(), 0, NULL );
 
   auto computePipelineCreateInfo = vkinit::computepipeline_create_info( mCompute.pipelineLayout, 0 );
@@ -569,6 +540,18 @@ void VulkanRenderer::prepareCompute()
   VK_CHECK( vkCreateSemaphore( mDevice, &semaphoreCreateInfo, nullptr, &mCompute.semaphore ) );
 
   buildComputeCommandBuffer();
+}
+
+void VulkanRenderer::destroyCompute()
+{
+  destroyComputeCommandBuffer();
+
+  vkDestroySemaphore( mDevice, mCompute.semaphore, nullptr );
+  vmaDestroyBuffer( mAllocator, mMainScreenBuffer._buffer, mMainScreenBuffer._allocation );
+  vkFreeDescriptorSets( mDevice, mDescriptorPool, 1, &mCompute.descriptorSet );
+  vkDestroyPipelineLayout( mDevice, mCompute.pipelineLayout, nullptr );
+  vkDestroyDescriptorSetLayout( mDevice, mCompute.descriptorSetLayout, nullptr );
+  vkDestroyCommandPool( mDevice, mCompute.commandPool, nullptr );
 }
 
 VkCommandBuffer VulkanRenderer::createCommandBuffer( VkCommandBufferLevel level, VkCommandPool pool, bool begin )
@@ -673,17 +656,25 @@ void VulkanRenderer::setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, V
   vkCmdPipelineBarrier( cmdbuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier );
 }
 
-void VulkanRenderer::prepareTextureTarget( VulkanTexture *tex, VkFormat format, uint32_t width, uint32_t height )
+void VulkanRenderer::prepareTextureTarget( VulkanTexture *tex, VkFormat format )
 {
-  VkFormatProperties formatProperties;
+  uint32_t w = SCREEN_WIDTH;
+  uint32_t h = SCREEN_HEIGHT;
 
+  if ( (int)mRotation )
+  {
+    w = SCREEN_HEIGHT;
+    h = SCREEN_WIDTH;
+  }
+
+  VkFormatProperties formatProperties;
   vkGetPhysicalDeviceFormatProperties( mPhysicalDevice, format, &formatProperties );
   assert( formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT );
 
-  tex->mWidth = width;
-  tex->mHeight = height;
+  tex->mWidth = w;
+  tex->mHeight = h;
 
-  auto imageCreateInfo = vkinit::image_create_info( format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, { width, height, 1 } );
+  auto imageCreateInfo = vkinit::image_create_info( format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, { w, h, 1 } );
 
   std::vector<uint32_t> queueFamilyIndices;
   auto grQueue = mQueueFamily;
@@ -701,8 +692,7 @@ void VulkanRenderer::prepareTextureTarget( VulkanTexture *tex, VkFormat format, 
   allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
   allocCreateInfo.priority = 1.0f;
 
-  VmaAllocation alloc;
-  vmaCreateImage( mAllocator, &imageCreateInfo, &allocCreateInfo, &tex->mImage, &alloc, nullptr );
+  vmaCreateImage( mAllocator, &imageCreateInfo, &allocCreateInfo, &tex->mImage, &mLynxScreenAllocation, nullptr );
 
   VkCommandBuffer layoutCmd = createCommandBuffer( VK_COMMAND_BUFFER_LEVEL_PRIMARY, mCommandPool, true );
 
@@ -720,6 +710,13 @@ void VulkanRenderer::prepareTextureTarget( VulkanTexture *tex, VkFormat format, 
   tex->mDevice = mDevice;
 
   tex->mDS = ImGui_ImplVulkan_AddTexture( nullptr, tex->mView, VK_IMAGE_LAYOUT_GENERAL );
+}
+
+void VulkanRenderer::destroyTexture( VulkanTexture *tex )
+{
+  ImGui_ImplVulkan_RemoveTexture( tex->mDS );
+  vkDestroyImageView( mDevice, tex->mView, nullptr );
+  vmaDestroyImage( mAllocator, tex->mImage, mLynxScreenAllocation );
 }
 
 bool VulkanRenderer::shouldClose()
@@ -781,4 +778,24 @@ void VulkanRenderer::registerFileDropCallback( std::function<void( std::filesyst
 void VulkanRenderer::registerKeyEventCallback( std::function<void( int, bool )> callback )
 {
   mKeyEventCallback = std::move( callback );
+}
+
+void VulkanRenderer::setRotation( ImageProperties::Rotation rotation )
+{
+  mRotation = rotation;
+
+  vkQueueWaitIdle( mCompute.queue );
+
+  if ( mMainScreenTexture.mDS != nullptr )
+  {
+    destroyTexture( &mMainScreenTexture );
+  }
+
+  if ( mCompute.commandBuffer != nullptr )
+  {
+    destroyCompute();
+  }
+
+  prepareTextureTarget( &mMainScreenTexture, VK_FORMAT_R8G8B8A8_UNORM );
+  prepareCompute();
 }

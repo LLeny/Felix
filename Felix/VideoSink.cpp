@@ -30,7 +30,7 @@ void VideoSink::emitScreenData( std::span<uint8_t const> data )
   for (auto d : data)
   {
     mWorkingFrame->at(mWorkingFramePointer++) = d;
-  }  
+  }
 }
 
 void VideoSink::updateColorReg( uint8_t reg, uint8_t value )

@@ -145,8 +145,7 @@ std::shared_ptr<IRenderer> SystemDriver::renderer() const
 void SystemDriver::updateRotation( ImageProperties::Rotation rotation )
 {
   mIntputSource->setRotation( rotation );
-  // TODO
-  // mRenderer->setRotation( rotation );
+  mRenderer->setRotation( rotation );
 }
 
 void SystemDriver::setImageName( std::string name )

@@ -10,7 +10,8 @@
             "ms-vscode.cpptools-extension-pack", 
             "ms-vscode.cmake-tools",
             "xaver.clang-format",
-            "nick-rudenko.back-n-forth"
+            "nick-rudenko.back-n-forth",
+            "dtoplak.vscode-glsllint"
           ]
         }
     }

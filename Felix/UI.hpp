@@ -5,6 +5,9 @@
 #include <optional>
 #include <memory>
 
+#define IM_MAX(A, B) (((A) >= (B)) ? (A) : (B))
+#define IM_MIN(A, B) (((A) <= (B)) ? (A) : (B))
+
 class Manager;
 struct ImGuiIO;
 struct DebugWindow;
