@@ -469,7 +469,7 @@ void VulkanRenderer::buildComputeCommandBuffer()
   vkCmdBindPipeline( mCompute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, mCompute.pipelines[mCompute.pipelineIndex] );
   vkCmdBindDescriptorSets( mCompute.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, mCompute.pipelineLayout, 0, 1, &mCompute.descriptorSet, 0, 0 );
 
-  vkCmdDispatch( mCompute.commandBuffer, SCREEN_WIDTH / 16, SCREEN_HEIGHT / 16, 1 );
+  vkCmdDispatch( mCompute.commandBuffer, SCREEN_WIDTH / 16, SCREEN_HEIGHT / 6, 1 );
 
   vkEndCommandBuffer( mCompute.commandBuffer );
 }
