@@ -15,8 +15,8 @@ layout (set = 0, binding = 2, rgba8) writeonly uniform image2D resultImage;
 
 vec4 getColor(uint8_t pixel)
 {
-	uint8_t br = paletteBuffer.palette[pixel+uint8_t(16)];
-	uint8_t g =  paletteBuffer.palette[pixel];
+	uint8_t br = paletteBuffer.palette[uint(pixel+uint8_t(16))];
+	uint8_t g =  paletteBuffer.palette[uint(pixel)];
 
 	float rf = float( ( br << 4 ) | ( br & uint8_t(0x0f) ) ) / 255.0;
 	float gf = float( ( g  << 4 ) | ( g  & uint8_t(0x0f) ) ) / 255.0;

@@ -3,6 +3,8 @@ enable_language( CXX )
 set( CMAKE_CXX_STANDARD 20 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 
+include( "helpers/cmake/glsl-shaders.cmake" )
+
 set( BUILD_DIR ${CMAKE_SOURCE_DIR}/build )
 set( CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" )
 set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin" )
@@ -32,8 +34,6 @@ file(WRITE "libextern/libwav/CMakeLists.txt" ${FILE_CONTENTS})
 
 file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/helpers/cmake/lua/CMakeLists.txt" DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}/libextern/lua" )
 
-file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" DESTINATION "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders")   
-
 if( WIN32 )
     set( CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON )
 endif()
@@ -59,7 +59,6 @@ endif()
 
 add_subdirectory( "libFelix" )
 
-
 file ( GLOB_RECURSE felix_SOURCES CONFIGURE_DEPENDS 
     "Felix/*.cpp" 
     "libextern/imgui/imgui.cpp"
@@ -70,6 +69,10 @@ file ( GLOB_RECURSE felix_SOURCES CONFIGURE_DEPENDS
     "libextern/imgui/backends/imgui_impl_glfw.cpp"
 )
 add_executable( ${PROJECT_NAME} ${felix_SOURCES} )
+
+target_glsl_shaders( ${PROJECT_NAME}
+       PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp"
+)
 
 target_include_directories( ${PROJECT_NAME} PRIVATE 
     ${Vulkan_INCLUDE_DIRS}
@@ -104,3 +107,7 @@ target_link_libraries( ${PROJECT_NAME}
     libFelix
     lua
     )
+    
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
+)

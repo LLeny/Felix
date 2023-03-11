@@ -15,7 +15,7 @@ RUN echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-16 main" \
     apt-get -qq update && \
     apt-get install -qqy -t \
         llvm-toolchain-bullseye-16 clang-16 clang-tidy-16 clang-format-16 lld-16 libc++1-16 libc++-16-dev lldb-16 \
-        libvulkan-dev  libglfw3-dev libssl-dev libasound2-dev libjack-dev  && \
+        libvulkan-dev libboost-dev libglfw3-dev libssl-dev libasound2-dev libjack-dev glslang-tools && \
     for f in /usr/lib/llvm-16/bin/*; do ln -sf "$f" /usr/bin; done && \
     ln -s /usr/lib/x86_64-linux-gnu/libc++abi.so.1 /usr/lib/x86_64-linux-gnu/libc++abi.so && \
     ln -s /usr/bin/lldb-16 /usr/bin/lldb && \
