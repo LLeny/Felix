@@ -36,8 +36,7 @@ mRenderThread{},
 mAudioThread{},
 mRenderingTime{},
 mScriptDebuggerEscapes{ std::make_shared<ScriptDebuggerEscapes>() },
-mImageProperties{},
-mRenderer{},
+mImageProperties{}
 {
   mDebugger( RunMode::RUN );
   mAudioOut = std::make_shared<AudioOut>();
@@ -154,7 +153,7 @@ void Manager::updateDebugWindows()
   //  return;
   //}
 
-  std::unique_lock<std::mutex> l{ mDebugger.mutex };
+  // std::unique_lock<std::mutex> l{ mDebugger.mutex };
 
   //if ( !mDebugWindows.mainScreenView )
   //{
@@ -191,8 +190,8 @@ void Manager::updateDebugWindows()
   {
     mDebugWindows.historyBoard.reset();
   }*/
-BoardRendering Manager::renderHistoryWindow()
-{
+// BoardRendering Manager::renderHistoryWindow()
+// {
   // TODO
   /*if ( mDebugger.isHistoryVisualized() && mDebugWindows.historyBoard )
   {
@@ -201,9 +200,9 @@ BoardRendering Manager::renderHistoryWindow()
     return { true, tex, 8.0f * win.columns , 16.0f * win.rows };
   }
   else*/
-  {
-    return { mDebugger.isHistoryVisualized() };
-  }
+//   {
+//     return { mDebugger.isHistoryVisualized() };
+//   }
 }
 
 void Manager::processLua( std::filesystem::path const& path )

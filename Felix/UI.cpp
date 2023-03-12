@@ -90,7 +90,7 @@ bool UI::mainMenu( ImGuiIO &io )
     resetIssued = true;
   }
 
-  if ( ImGui::IsKeyPressed( ImGuiKey_F4 ) && mManager.mExtendedRenderer )
+  if ( ImGui::IsKeyPressed( ImGuiKey_F4 ) )
   {
     debugMode = !debugMode;
   }
@@ -488,7 +488,8 @@ void UI::drawDebugWindows( ImGuiIO &io )
 {
   std::unique_lock<std::mutex> l = mManager.mDebugger.lockMutex();
 
-  auto historyRendering = mManager.renderHistoryWindow();
+  // TODO
+  auto historyRendering = false;//mManager.renderHistoryWindow();
   bool debugMode = mManager.mDebugger.isDebugMode();
 
   if ( debugMode )
@@ -506,27 +507,6 @@ void UI::drawDebugWindows( ImGuiIO &io )
     {
       ImGui::Begin( "Memory", &mManager.mDebugger.visualizeMemory, ImGuiWindowFlags_None );
       mManager.mDebugWindows.memoryEditor.drawContents();
-      ImGui::End();
-    }
-
-    if ( mManager.mDebugger.visualizeWatch )
-    {
-      ImGui::Image( cpuRendering.window, ImVec2{ cpuRendering.width, cpuRendering.height } );
-      mManager.mDebugWindows.watchEditor.drawContents();
-      ImGui::End();
-    }
-
-    if ( disasmRendering.enabled )
-    {
-      ImGui::Begin( "Disassembly", &disasmRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
-      mManager.mDebugWindows.breakpointEditor.drawContents();
-      ImGui::End();
-    }
-
-    if ( mManager.mDebugger.visualizeDisasm )
-    {
-      ImGui::Image( disasmRendering.window, ImVec2{ disasmRendering.width, disasmRendering.height } );
-      mManager.mDebugWindows.disasmEditor.drawContents();
       ImGui::End();
     }
 
@@ -551,12 +531,13 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::End();
     }
 
-    if ( historyRendering.enabled )
-    {
-      ImGui::Begin( "History", &historyRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
-      ImGui::Image( historyRendering.window, ImVec2{ historyRendering.width, historyRendering.height } );
-      ImGui::End();
-    }
+    // TODO
+    // if ( historyRendering.enabled )
+    // {
+    //   ImGui::Begin( "History", &historyRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
+    //   ImGui::Image( historyRendering.window, ImVec2{ historyRendering.width, historyRendering.height } );
+    //   ImGui::End();
+    // }
 
     std::vector<int> removedIds;
     for ( auto &sv : mManager.mDebugger.screenViews() )
@@ -676,17 +657,18 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::Checkbox( "CPU Window", &mManager.mDebugger.visualizeCPU );
       ImGui::Checkbox( "Disassembly Window", &mManager.mDebugger.visualizeDisasm );
       ImGui::Checkbox( "Memory Window", &mManager.mDebugger.visualizeMemory );
-      if ( ImGui::Checkbox( "History Window", &historyRendering.enabled ) )
-      {
-        if ( historyRendering.enabled )
-        {
-          mManager.mInstance->debugCPU().enableHistory( mManager.mDebugger.historyVisualizer().columns, mManager.mDebugger.historyVisualizer().rows );
-        }
-        else
-        {
-          mManager.mInstance->debugCPU().disableHistory();
-        }
-      }
+      //TODO
+      // if ( ImGui::Checkbox( "History Window", &historyRendering.enabled ) )
+      // {
+      //   if ( historyRendering.enabled )
+      //   {
+      //     mManager.mInstance->debugCPU().enableHistory( mManager.mDebugger.historyVisualizer().columns, mManager.mDebugger.historyVisualizer().rows );
+      //   }
+      //   else
+      //   {
+      //     mManager.mInstance->debugCPU().disableHistory();
+      //   }
+      // }
       if ( ImGui::Selectable( "New Screen View" ) )
       {
         mManager.mDebugger.newScreenView();
@@ -694,7 +676,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::EndPopup();
     }
 
-    mManager.mDebugger.visualizeHistory( historyRendering.enabled );
+    // mManager.mDebugger.visualizeHistory( historyRendering.enabled );
   }
 }
 

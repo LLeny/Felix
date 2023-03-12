@@ -55,6 +55,7 @@ void SysConfig::serialize( std::filesystem::path path )
   fout << "visualizeCPU = " << ( visualizeCPU ? "true;\n" : "false;\n" );
   fout << "visualizeDisasm = " << ( visualizeDisasm ? "true;\n" : "false;\n" );
   fout << "disasmOptions = {\n";
+  fout << "\tFollowPC              = " << ( disasmOptions.followPC ? "true;\n" : "false;\n" );
   fout << "\tShowLabelsInAddrCol   = " << ( disasmOptions.ShowLabelsInAddrCol ? "true;\n" : "false;\n" );
   fout << "\ttablePC               = " << disasmOptions.tablePC << ";\n";
   fout << "};\n";
@@ -123,6 +124,7 @@ SysConfig::SysConfig( sol::state const& lua )
   memoryOptions.OptAddrDigitsCount = lua["memoryOptions"]["OptAddrDigitsCount"].get_or( memoryOptions.OptAddrDigitsCount );
   memoryOptions.OptFooterExtraHeight = lua["memoryOptions"]["OptFooterExtraHeight"].get_or( memoryOptions.OptFooterExtraHeight );
   visualizeDisasm = lua["visualizeDisasm"].get_or( visualizeDisasm );
+  disasmOptions.followPC = lua["disasmOptions"]["FollowPC"].get_or( disasmOptions.followPC );
   disasmOptions.ShowLabelsInAddrCol = lua["disasmOptions"]["ShowLabelsInAddrCol"].get_or( disasmOptions.ShowLabelsInAddrCol );
   disasmOptions.tablePC = lua["disasmOptions"]["tablePC"].get_or( disasmOptions.tablePC );
   visualizeWatch= lua["visualizeWatch"].get_or( visualizeWatch);
