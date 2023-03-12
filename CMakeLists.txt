@@ -111,6 +111,7 @@ target_link_libraries( ${PROJECT_NAME}
 
 add_custom_command(
     OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/lynx_render.comp.spv"
-    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
+    COMMAND ${CMAKE_COMMAND} -E make_directory  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/"
     MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv"
 )
