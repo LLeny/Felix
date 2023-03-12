@@ -18,7 +18,7 @@ RUN echo "deb http://apt.llvm.org/bullseye/ llvm-toolchain-bullseye-16 main" \
         libvulkan-dev libboost-dev libglfw3-dev libssl-dev libasound2-dev libjack-dev glslang-tools && \
     for f in /usr/lib/llvm-16/bin/*; do ln -sf "$f" /usr/bin; done && \
     ln -s /usr/lib/x86_64-linux-gnu/libc++abi.so.1 /usr/lib/x86_64-linux-gnu/libc++abi.so && \
-    ln -s /usr/bin/lldb-16 /usr/bin/lldb && \
+    ln -sf /usr/bin/lld-16 /usr/bin/ld && \
     rm -rf /var/lib/apt/lists/*
 
 FROM intermediate as final
