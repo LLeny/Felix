@@ -90,7 +90,7 @@ bool UI::mainMenu( ImGuiIO &io )
     resetIssued = true;
   }
 
-  if ( ImGui::IsKeyPressed( ImGuiKey_F4 ) )
+  if ( ImGui::IsKeyPressed( ImGuiKey_F4 ) && mManager.mExtendedRenderer )
   {
     debugMode = !debugMode;
   }
@@ -486,7 +486,7 @@ void UI::drawMainScreen()
 
 void UI::drawDebugWindows( ImGuiIO &io )
 {
-  std::unique_lock<std::mutex> l{ mManager.mDebugger.mutex };
+  std::unique_lock<std::mutex> l = mManager.mDebugger.lockMutex();
 
   auto historyRendering = mManager.renderHistoryWindow();
   bool debugMode = mManager.mDebugger.isDebugMode();
@@ -506,6 +506,27 @@ void UI::drawDebugWindows( ImGuiIO &io )
     {
       ImGui::Begin( "Memory", &mManager.mDebugger.visualizeMemory, ImGuiWindowFlags_None );
       mManager.mDebugWindows.memoryEditor.drawContents();
+      ImGui::End();
+    }
+
+    if ( mManager.mDebugger.visualizeWatch )
+    {
+      ImGui::Image( cpuRendering.window, ImVec2{ cpuRendering.width, cpuRendering.height } );
+      mManager.mDebugWindows.watchEditor.drawContents();
+      ImGui::End();
+    }
+
+    if ( disasmRendering.enabled )
+    {
+      ImGui::Begin( "Disassembly", &disasmRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
+      mManager.mDebugWindows.breakpointEditor.drawContents();
+      ImGui::End();
+    }
+
+    if ( mManager.mDebugger.visualizeDisasm )
+    {
+      ImGui::Image( disasmRendering.window, ImVec2{ disasmRendering.width, disasmRendering.height } );
+      mManager.mDebugWindows.disasmEditor.drawContents();
       ImGui::End();
     }
 

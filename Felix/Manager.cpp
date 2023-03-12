@@ -37,7 +37,7 @@ mAudioThread{},
 mRenderingTime{},
 mScriptDebuggerEscapes{ std::make_shared<ScriptDebuggerEscapes>() },
 mImageProperties{},
-mDebugWindows{}
+mRenderer{},
 {
   mDebugger( RunMode::RUN );
   mAudioOut = std::make_shared<AudioOut>();
@@ -154,7 +154,7 @@ void Manager::updateDebugWindows()
   //  return;
   //}
 
-  //std::unique_lock<std::mutex> l{ mDebugger.mutex };
+  std::unique_lock<std::mutex> l{ mDebugger.mutex };
 
   //if ( !mDebugWindows.mainScreenView )
   //{
@@ -191,8 +191,6 @@ void Manager::updateDebugWindows()
   {
     mDebugWindows.historyBoard.reset();
   }*/
-}
-
 BoardRendering Manager::renderHistoryWindow()
 {
   // TODO
@@ -402,7 +400,7 @@ std::shared_ptr<ImageROM const> Manager::getOptionalBootROM()
 
 void Manager::reset()
 {
-  std::unique_lock<std::mutex> l{ mDebugger.mutex };
+  std::unique_lock<std::mutex> l = mDebugger.lockMutex();
   mProcessThreads.store( false );
   //TODO wait for threads to stop.
   mInstance.reset();

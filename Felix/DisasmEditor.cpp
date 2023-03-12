@@ -13,7 +13,8 @@ DisasmEditor::DisasmEditor() : mPC{ 0 }, mFollowPC { 0 }
 {
   auto sysConfig = gConfigProvider.sysConfig();
 
-  mFollowPC = sysConfig->disasmOptions.FollowPC;
+  mFollowPC = sysConfig->disasmOptions.followPC;
+  mTablePC = sysConfig->disasmOptions.tablePC + 1;
   mShowLabelsInAddrCol = sysConfig->disasmOptions.ShowLabelsInAddrCol;
 }
 
@@ -21,8 +22,9 @@ DisasmEditor::~DisasmEditor()
 {
   auto sysConfig = gConfigProvider.sysConfig();
 
-  sysConfig->disasmOptions.FollowPC = mFollowPC;
+  sysConfig->disasmOptions.followPC = mFollowPC;
   sysConfig->disasmOptions.ShowLabelsInAddrCol = mShowLabelsInAddrCol;
+  sysConfig->disasmOptions.tablePC = mFollowPC ? 0x200 : mTablePC;
 }
 
 void DisasmEditor::setManager( Manager* manager )
@@ -66,7 +68,7 @@ void DisasmEditor::drawTable()
   auto opColor = IM_COL32( 126, 88, 137, 255 );
   auto tableSize = ImGui::GetWindowSize();
   tableSize.y -= ImGuiStyleVar_CellPadding * 3;
-  int itemCount = (tableSize.y / (float)ImGuiStyleVar_CellPadding) + 1;
+  int itemCount = (int)(tableSize.y / (float)ImGuiStyleVar_CellPadding) + 1;
   uint8_t oprLength = 0;
   int prevPC;
 
@@ -168,9 +170,9 @@ void DisasmEditor::drawTable()
 
 void DisasmEditor::drawOptions()
 {
-  char addrbuf[5]{};
+  std::array<char, 5> addrbuf{};
 
-  ImGui::SetCursorPosY( ImGui::GetWindowHeight() - (float)ImGuiStyleVar_CellPadding - 10 );
+  ImGui::SetCursorPosY( ImGui::GetWindowHeight() - (int)ImGuiStyleVar_CellPadding - 10 );
   ImGui::Separator();
   if ( ImGui::Button( "Options" ) )
   {
@@ -183,11 +185,13 @@ void DisasmEditor::drawOptions()
     ImGui::EndPopup();
   }
   ImGui::SameLine();
+  ImGui::BeginDisabled( mFollowPC );
   ImGui::SetNextItemWidth( 40 );
-  if ( ImGui::InputText( "##disasmtableaddr", addrbuf, 5, ( mFollowPC ? ImGuiInputTextFlags_ReadOnly : 0 ) | ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue ) )
+  if ( ImGui::InputText( "##disasmtableaddr", addrbuf.data(), addrbuf.size(), ImGuiInputTextFlags_CharsHexadecimal | ImGuiInputTextFlags_CharsUppercase | ImGuiInputTextFlags_EnterReturnsTrue ) )
   {
-    sscanf( addrbuf, "%04X", &mTablePC );
+    std::from_chars( addrbuf.data(), addrbuf.data() + addrbuf.size(), mTablePC, 16 );
   }
+  ImGui::EndDisabled();
 }
 
 void DisasmEditor::scrollUp()

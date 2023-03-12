@@ -58,10 +58,9 @@ public:
 
   void togglePause();
 
-  DebugWindow& disasmVisualizer();
   DebugWindow& historyVisualizer();
 
-  mutable std::mutex mutex;
+  std::unique_lock<std::mutex> lockMutex() const;
 
   bool visualizeCPU;
   bool visualizeMemory;
@@ -70,6 +69,7 @@ public:
   bool visualizeDisasm;
 
 private:
+  mutable std::mutex mMutex;
   std::vector<ScreenView> mScreenViews;
   DebugWindow mHistoryVisualizer;
   bool mDebugMode;  
