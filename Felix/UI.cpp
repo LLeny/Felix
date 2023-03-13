@@ -436,52 +436,75 @@ bool UI::mainMenu( ImGuiIO &io )
 
 void UI::drawMainScreen()
 {
-  bool debugMode = mManager.mDebugger.isDebugMode();
-
-  if ( !debugMode || !mManager.mImageProperties )
+  if ( !mManager.mImageProperties )
   {
     return;
   }
 
+  bool debugMode = mManager.mDebugger.isDebugMode();
+
   ImVec2 contentSize;
+  float ratio;
 
   if ( (int)mManager.mImageProperties->getRotation() )
   {
     contentSize = ImVec2{ SCREEN_HEIGHT, SCREEN_WIDTH };
+    ratio = (float)SCREEN_HEIGHT / SCREEN_WIDTH;
   }
   else
   {
     contentSize = ImVec2{ SCREEN_WIDTH, SCREEN_HEIGHT };
+    ratio = (float)SCREEN_WIDTH / SCREEN_HEIGHT;
   }
 
-  float titleHeight = ImGui::GetFrameHeight();
-  float ratio = contentSize.x / contentSize.y;
+  ImGuiWindowFlags flags = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar;
+  std::string id = "Rendering";
+  ImVec2 frameSize {};
+  float headerHeight = 0;
 
-  ImGui::PushStyleVar( ImGuiStyleVar_WindowMinSize, { contentSize.x, contentSize.y + titleHeight } );
+  if( !debugMode )
+  {
+    flags |= ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBringToFrontOnFocus;
+    id += "full";
+    frameSize = { mManager.mSystemDriver->renderer()->getDimensions() };
+    
+    ImGui::SetNextWindowPos( { 0, 0 } );
+    ImGui::SetNextWindowSize( frameSize );
+  }
+
   ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, { 0, 0 } );
   ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
 
-  ImGui::Begin( "Rendering", &debugMode, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoScrollbar );
-  if ( auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID() )
+  ImGui::Begin( id.c_str() , &debugMode, flags );
+
+  if( debugMode )
   {
     auto size = ImGui::GetWindowSize();
-    ImVec2 tgtSize( size.x, size.y - titleHeight );
+    headerHeight = ImGui::GetFrameHeight();
+    frameSize = { size.x, size.y - headerHeight };
+  }
 
-    if ( ratio >= 1 )
+  if ( auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID() )
+  {
+    ImVec2 tgtSize = { frameSize };
+
+    if( tgtSize.x / ratio > tgtSize.y )
     {
-      tgtSize.x = IM_MAX( tgtSize.x, tgtSize.y );
-      tgtSize.y = (float)(int)( tgtSize.x / ratio );
+      tgtSize.x = (float)(int)( tgtSize.y * ratio );
     }
     else
     {
-      tgtSize.x = IM_MIN( tgtSize.x, tgtSize.y );
       tgtSize.y = (float)(int)( tgtSize.x / ratio );
     }
 
+    ImVec2 pos = { (frameSize.x - tgtSize.x) / 2.0f, (frameSize.y - tgtSize.y) / 2.0f + headerHeight };
+    ImGui::SetCursorPos( pos );
     ImGui::Image( tex, { tgtSize.x, tgtSize.y } );
   }
+
   ImGui::End();
-  ImGui::PopStyleVar( 3 );
+
+  ImGui::PopStyleVar( 2 );
 }
 
 void UI::drawDebugWindows( ImGuiIO &io )

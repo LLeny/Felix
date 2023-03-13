@@ -27,14 +27,14 @@
 #include "Utility.hpp"
 
 #define VK_CHECK( x )                                                                                                                                                                                                                                                                                                                                                  \
-  do                                                                                                                                                                                                                                                                                                                                                                   \
-  {                                                                                                                                                                                                                                                                                                                                                                    \
-    VkResult err = x;                                                                                                                                                                                                                                                                                                                                                  \
-    if ( err )                                                                                                                                                                                                                                                                                                                                                         \
-    {                                                                                                                                                                                                                                                                                                                                                                  \
-      L_ERROR << "Detected Vulkan error: " << err;                                                                                                                                                                                                                                                                                                                     \
-      abort();                                                                                                                                                                                                                                                                                                                                                         \
-    }                                                                                                                                                                                                                                                                                                                                                                  \
+  do                                                     \
+  {                                                      \
+    VkResult err = x;                                    \
+    if ( err )                                           \
+    {                                                    \
+      L_ERROR << "Detected Vulkan error: " << err;       \
+      abort();                                           \
+    }                                                    \
   } while ( 0 )
 
 struct DeletionQueue
@@ -105,7 +105,10 @@ private:
   void framePresent( ImGui_ImplVulkanH_Window *wd );
   void renderImGui( UI &ui );
   void renderMainScreen();
+  ImVec2 getDimensions() override;
   ImTextureID getMainScreenTextureID() override;
+
+  ImVec2 mDimensions {};
 
   std::function<void( std::filesystem::path )> mFileDropCallback = {};
   std::function<void( int, bool )> mKeyEventCallback = {};

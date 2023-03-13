@@ -208,7 +208,12 @@ void VulkanRenderer::frameRender( ImGui_ImplVulkanH_Window *wd, ImDrawData *draw
 {
   VkSemaphore image_acquired_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
   VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
-  VK_CHECK( vkAcquireNextImageKHR( mDevice, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex ) );
+  VkResult err = vkAcquireNextImageKHR( mDevice, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex );
+  if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
+  {
+      mSwapChainRebuild = true;
+      return;
+  }
 
   ImGui_ImplVulkanH_Frame *fd = &wd->Frames[wd->FrameIndex];
   VK_CHECK( vkWaitForFences( mDevice, 1, &fd->Fence, VK_TRUE, UINT64_MAX ) );
@@ -263,8 +268,18 @@ void VulkanRenderer::framePresent( ImGui_ImplVulkanH_Window *wd )
   info.swapchainCount = 1;
   info.pSwapchains = &wd->Swapchain;
   info.pImageIndices = &wd->FrameIndex;
-  VK_CHECK( vkQueuePresentKHR( mQueue, &info ) );
+  VkResult err = vkQueuePresentKHR( mQueue, &info );
+  if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR)
+  {
+      mSwapChainRebuild = true;
+      return;
+  }
   wd->SemaphoreIndex = ( wd->SemaphoreIndex + 1 ) % wd->ImageCount;
+}
+
+ImVec2 VulkanRenderer::getDimensions()
+{
+  return mDimensions;
 }
 
 void VulkanRenderer::initialize()
@@ -286,7 +301,8 @@ void VulkanRenderer::initialize()
 
   glfwSetWindowUserPointer( mMainWindow, this );
 
-  glfwSetDropCallback( mMainWindow, []( GLFWwindow *window, int count, const char **paths ) {
+  glfwSetDropCallback( mMainWindow, []( GLFWwindow *window, int count, const char **paths ) 
+  {
     if ( count != 1 )
     {
       return;
@@ -310,6 +326,12 @@ void VulkanRenderer::initialize()
 
     self->mFileDropCallback( path );
   } );
+
+  glfwSetFramebufferSizeCallback( mMainWindow, []( GLFWwindow *window, int width, int height )
+  {
+    auto self = static_cast<VulkanRenderer *>( glfwGetWindowUserPointer( window ) );
+    self->mDimensions = { static_cast<float>( width ), static_cast<float>( height )};
+  });
 
   glfwSetKeyCallback( mMainWindow, []( GLFWwindow *window, int key, int scancode, int action, int mods ) {
     auto self = static_cast<VulkanRenderer *>( glfwGetWindowUserPointer( window ) );
@@ -337,6 +359,9 @@ void VulkanRenderer::initialize()
 
   int w, h;
   glfwGetFramebufferSize( mMainWindow, &w, &h );
+
+  mDimensions = { static_cast<float>( w ), static_cast<float>( h )};
+  
   ImGui_ImplVulkanH_Window *wd = &mMainWindowData;
   setupVulkanWindow( wd, mSurface, w, h );
 
@@ -734,6 +759,7 @@ void VulkanRenderer::renderImGui( UI &ui )
 
   if ( mSwapChainRebuild )
   {
+    L_DEBUG << "Vulkan swapchain rebuild";
     int width, height;
     glfwGetFramebufferSize( mMainWindow, &width, &height );
     if ( width > 0 && height > 0 )

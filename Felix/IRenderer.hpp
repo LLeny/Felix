@@ -21,4 +21,5 @@ public:
   virtual void registerFileDropCallback( std::function<void( std::filesystem::path )> callback ) = 0;
   virtual void registerKeyEventCallback( std::function<void( int, bool )> callback ) = 0;
   virtual void setRotation( ImageProperties::Rotation rotation ) = 0;
+  virtual ImVec2 getDimensions() = 0;
 };
