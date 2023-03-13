@@ -5,8 +5,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(libFelix)
 
-find_package( OpenSSL REQUIRED )
-
 file(GLOB SOURCE_FILES
      "*.hpp"
      "*.cpp"
@@ -14,9 +12,6 @@ file(GLOB SOURCE_FILES
 
 add_library( ${PROJECT_NAME} STATIC ${SOURCE_FILES} )
 
-target_link_libraries( ${PROJECT_NAME} OpenSSL::SSL )
-
 target_include_directories( ${PROJECT_NAME} PRIVATE 
     "../libextern/fmt/include"
-    OpenSSL::SSL
 )
