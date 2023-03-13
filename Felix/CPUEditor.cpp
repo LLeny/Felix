@@ -80,7 +80,7 @@ void CPUEditor::drawRegister( const char* label, uint8_t reg )
     }
   }
 
-  ImGui::Text( charsBuf.data() );
+  ImGui::Text( "%s", charsBuf.data() );
 
   ImGui::SameLine( 4 * ITEM_WIDTH );
   ImGui::Text( "%d", reg );
