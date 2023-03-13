@@ -16,31 +16,32 @@ void Log::setLogLevel( LogLevel ll )
 
 void Log::log( LogLevel ll, std::string const & message )
 {
-  if ( ll >= mLogLevel )
-  {
-    //static bool err = false;
-    //if ( ll >= LL_ERROR )
-    //{
-    //  if ( !err )
-    //  {
-    //    std::cout.flush();
-    //  }
-    //  std::cerr << message;
-    //  err = true;
-    //}
-    //else
-    //{
-    //  if ( err )
-    //  {
-    //    std::cerr.flush();
-    //  }
-    //  std::cout << message;
-    //  err = false;
-    //}
 #ifdef _WIN32
     OutputDebugStringA( message.c_str() );
-#endif
+#else
+  if ( ll >= mLogLevel )
+  {
+    static bool err = false;
+    if ( ll >= LL_ERROR )
+    {
+     if ( !err )
+     {
+       std::cout.flush();
+     }
+     std::cerr << message;
+     err = true;
+    }
+    else
+    {
+     if ( err )
+     {
+       std::cerr.flush();
+     }
+     std::cout << message;
+     err = false;
+    }
   }
+#endif
 }
 
 Log & Log::instance()
