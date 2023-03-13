@@ -7,7 +7,7 @@
 #include "SysConfig.hpp"
 
 #define NUM_CHANNELS      2
-#define PA_SAMPLE_TYPE    paInt16
+#define PA_SAMPLE_TYPE    paFloat32
 #define SAMPLE_RATE       48000.0
 #define FRAMES_PER_BUFFER 10000
 
@@ -84,7 +84,7 @@ void AudioOut::setWavOut( std::filesystem::path path )
 
 void AudioOut::mute( bool value )
 {
-  mNormalizer = value ? 0.0f : 1.0f;
+  mNormalizer = value ? 0.0f : 1 / 32768.0f;
 }
 
 bool AudioOut::mute() const
@@ -151,7 +151,7 @@ CpuBreakType AudioOut::fillBuffer( std::shared_ptr<Core> instance, int64_t rende
 
     auto cpuBreakType = instance->advanceAudio( sps, std::span<AudioSample>{ mSamplesBuffer.data(), framesAvailable }, runMode );
 
-    uint16_t volumeAdjustBuffer[sizeof(AudioSample)*framesAvailable];
+    float volumeAdjustBuffer[sizeof(AudioSample)*framesAvailable];
     int pBuff = 0;
 
     for( uint16_t c = 0; c < framesAvailable; ++c )
@@ -162,12 +162,15 @@ CpuBreakType AudioOut::fillBuffer( std::shared_ptr<Core> instance, int64_t rende
 
     PA_CHECK( Pa_WriteStream( mStream, volumeAdjustBuffer, framesAvailable ) );
 
-    // TODO
-  /*  if ( mEncoder )
-      mEncoder->pushAudioBuffer( std::span<float const>( mSamplesBuffer, framesAvailable * NUM_CHANNELS ) );*/
+    if ( mEncoder )
+    {
+      mEncoder->pushAudioBuffer( std::span<float const>( volumeAdjustBuffer, framesAvailable * NUM_CHANNELS ) );
+    }
 
     if ( mWav )
+    {
       wav_write( mWav, mSamplesBuffer.data(), framesAvailable );
+    }
 
     return cpuBreakType;
   }
