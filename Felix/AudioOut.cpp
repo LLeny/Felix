@@ -84,7 +84,7 @@ void AudioOut::setWavOut( std::filesystem::path path )
 
 void AudioOut::mute( bool value )
 {
-  mNormalizer = value ? 0.0f : 1 / 32768.0f;
+  mNormalizer = value ? 0.0f : 1.0f;
 }
 
 bool AudioOut::mute() const
@@ -151,7 +151,16 @@ CpuBreakType AudioOut::fillBuffer( std::shared_ptr<Core> instance, int64_t rende
 
     auto cpuBreakType = instance->advanceAudio( sps, std::span<AudioSample>{ mSamplesBuffer.data(), framesAvailable }, runMode );
 
-    PA_CHECK( Pa_WriteStream( mStream, mSamplesBuffer.data(), framesAvailable ) );
+    uint16_t volumeAdjustBuffer[sizeof(AudioSample)*framesAvailable];
+    int pBuff = 0;
+
+    for( uint16_t c = 0; c < framesAvailable; ++c )
+    {
+      volumeAdjustBuffer[pBuff++] = mSamplesBuffer[c].left * mNormalizer;  
+      volumeAdjustBuffer[pBuff++] = mSamplesBuffer[c].right * mNormalizer;
+    }
+
+    PA_CHECK( Pa_WriteStream( mStream, volumeAdjustBuffer, framesAvailable ) );
 
     // TODO
   /*  if ( mEncoder )
