@@ -151,20 +151,19 @@ CpuBreakType AudioOut::fillBuffer( std::shared_ptr<Core> instance, int64_t rende
 
     auto cpuBreakType = instance->advanceAudio( sps, std::span<AudioSample>{ mSamplesBuffer.data(), framesAvailable }, runMode );
 
-    float volumeAdjustBuffer[sizeof(AudioSample)*framesAvailable];
-    int pBuff = 0;
-
+    std::vector<float> volumeAdjustBuffer;
+  
     for( uint16_t c = 0; c < framesAvailable; ++c )
     {
-      volumeAdjustBuffer[pBuff++] = mSamplesBuffer[c].left * mNormalizer;  
-      volumeAdjustBuffer[pBuff++] = mSamplesBuffer[c].right * mNormalizer;
+      volumeAdjustBuffer.push_back( mSamplesBuffer[c].left * mNormalizer );
+      volumeAdjustBuffer.push_back( mSamplesBuffer[c].right * mNormalizer );
     }
 
-    PA_CHECK( Pa_WriteStream( mStream, volumeAdjustBuffer, framesAvailable ) );
+    PA_CHECK( Pa_WriteStream( mStream, volumeAdjustBuffer.data(), framesAvailable ) );
 
     if ( mEncoder )
     {
-      mEncoder->pushAudioBuffer( std::span<float const>( volumeAdjustBuffer, framesAvailable * NUM_CHANNELS ) );
+      mEncoder->pushAudioBuffer( std::span<float const>( volumeAdjustBuffer.data(), framesAvailable * NUM_CHANNELS ) );
     }
 
     if ( mWav )
