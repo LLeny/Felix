@@ -25,6 +25,7 @@ class ImageROM;
 struct ImGuiIO;
 class IRenderer;
 class ISystemDriver;
+class VulkanRenderer;
 
 class Manager
 {
@@ -63,6 +64,7 @@ private:
   friend class WatchEditor;
   friend class DisasmEditor;
   friend class BreakpointEditor;
+  friend class VulkanRenderer;
 
   bool mDoReset;
 
@@ -70,8 +72,6 @@ private:
 
   struct DebugWindows
   {
-    //std::shared_ptr<IScreenView> mainScreenView;
-    //std::vector<std::pair<int, std::shared_ptr<ICustomScreenView>>> customScreenViews;
     CPUEditor cpuEditor;
     MemEditor memoryEditor;
     WatchEditor watchEditor;

@@ -52,6 +52,11 @@ void main()
 
   uint n = gl_GlobalInvocationID.y * 80 + gl_GlobalInvocationID.x / 2;
 
+  if( n > 80 * 102 )
+  {
+    return;
+  }
+
   uint8_t p = screenBuffer.mPixels[n];
 
   uint8_t left = p >> 4;

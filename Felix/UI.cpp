@@ -15,11 +15,17 @@
 
 
 UI::UI( Manager &manager ) : mManager{ manager }, mOpenMenu{}, mFileBrowser{ std::make_unique<ImGui::FileBrowser>() }
-{
+{  
 }
 
 UI::~UI()
 {
+  mManager.mSystemDriver->renderer()->deleteScreenView( mMainScreenViewId );
+}
+
+void UI::initialize()
+{
+  mMainScreenViewId = mManager.mSystemDriver->renderer()->addScreenView( 0 );
 }
 
 void UI::drawGui( int left, int top, int right, int bottom )
@@ -33,7 +39,7 @@ void UI::drawGui( int left, int top, int right, int bottom )
     mOpenMenu = mainMenu( io );
   }
 
-  drawMainScreen();
+  drawMainScreenView();
   drawDebugWindows( io );
 }
 
@@ -231,7 +237,7 @@ bool UI::mainMenu( ImGuiIO &io )
           ImGui::BeginDisabled( !mManager.mDebugger.isDebugMode() );
           if ( ImGui::MenuItem( "New Screen View", "Ctrl+S" ) )
           {
-            mManager.mDebugger.newScreenView();
+            mManager.mDebugger.newScreenView( mManager.mSystemDriver->renderer() );
           }
           ImGui::EndDisabled();
           ImGui::EndMenu();
@@ -362,7 +368,7 @@ bool UI::mainMenu( ImGuiIO &io )
     }
     if ( ImGui::IsKeyPressed( ImGuiKey_S ) && mManager.mDebugger.isDebugMode() )
     {
-      mManager.mDebugger.newScreenView();
+      mManager.mDebugger.newScreenView( mManager.mSystemDriver->renderer() );
     }
     if ( ImGui::IsKeyPressed( ImGuiKey_M ) )
     {
@@ -434,7 +440,7 @@ bool UI::mainMenu( ImGuiIO &io )
   return openMenu;
 }
 
-void UI::drawMainScreen()
+void UI::drawMainScreenView()
 {
   if ( !mManager.mImageProperties )
   {
@@ -484,7 +490,7 @@ void UI::drawMainScreen()
     frameSize = { size.x, size.y - headerHeight };
   }
 
-  if ( auto tex = mManager.mSystemDriver->renderer()->getMainScreenTextureID() )
+  if ( auto tex = mManager.mSystemDriver->renderer()->getScreenTextureID( mMainScreenViewId ) )
   {
     ImVec2 tgtSize = { frameSize };
 
@@ -580,8 +586,8 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::SetNextItemWidth( 80 );
       ImGui::Combo( "##sv", (int *)&sv.type, "dispadr\0vidbase\0collbas\0custom\0" );
       ImGui::SameLine();
-      std::span<uint8_t const> data{};
-      std::span<uint8_t const> palette{};
+
+      uint16_t addr;
 
       switch ( sv.type )
       {
@@ -589,52 +595,32 @@ void UI::drawDebugWindows( ImGuiIO &io )
         ImGui::BeginDisabled();
         if ( mManager.mInstance )
         {
-          uint16_t addr = mManager.mInstance->debugDispAdr();
+          addr = mManager.mInstance->debugDispAdr();
           std::sprintf( buf, "%04x", addr );
-          data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
-          if ( !sv.safePalette )
-          {
-            palette = mManager.mInstance->debugPalette();
-          }
         }
         break;
       case ScreenViewType::VIDBAS:
         ImGui::BeginDisabled();
         if ( mManager.mInstance )
         {
-          uint16_t addr = mManager.mInstance->debugVidBas();
+          addr = mManager.mInstance->debugVidBas();
           std::sprintf( buf, "%04x", addr );
-          data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
-          if ( !sv.safePalette )
-          {
-            palette = mManager.mInstance->debugPalette();
-          }
         }
         break;
       case ScreenViewType::COLLBAS:
         ImGui::BeginDisabled();
         if ( mManager.mInstance )
         {
-          uint16_t addr = mManager.mInstance->debugCollBas();
+          addr = mManager.mInstance->debugCollBas();
           std::sprintf( buf, "%04x", addr );
-          data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + addr, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
-          if ( !sv.safePalette )
-          {
-            palette = mManager.mInstance->debugPalette();
-          }
         }
         break;
       default: // ScreenViewType::CUSTOM:
         ImGui::BeginDisabled( false );
         if ( mManager.mInstance )
         {
-          uint16_t addr = sv.customAddress;
+          addr = sv.customAddress;
           std::sprintf( buf, "%04x", sv.customAddress );
-          data = std::span<uint8_t const>{ mManager.mInstance->debugRAM() + sv.customAddress, SCREEN_WIDTH * SCREEN_HEIGHT / 2 };
-          if ( !sv.safePalette )
-          {
-            palette = mManager.mInstance->debugPalette();
-          }
         }
         break;
       }
@@ -653,15 +639,13 @@ void UI::drawDebugWindows( ImGuiIO &io )
       size.x = std::max( 0.0f, size.x - xpad );
       size.y = std::max( 0.0f, size.y - ypad );
 
-      // auto it = std::ranges::find( mManager.mDebugWindows.customScreenViews, sv.id, [] ( auto const& p ) { return p.first; } );
-      // if ( it != mManager.mDebugWindows.customScreenViews.cend() )
-      //{
-      //   if ( auto tex = it->second->render( data, palette ) )
-      //   {
-      //     ImGui::Image( tex, size );
-      //   }
-      //   it->second->resize( (int)size.x, (int)size.y );
-      // }
+      auto it = std::find_if( mManager.mDebugger.mScreenViews.begin(), mManager.mDebugger.mScreenViews.end(), [sv] ( auto const& p ) { return p.id == sv.id; } );
+
+      if ( it != mManager.mDebugger.mScreenViews.end() )
+      {
+        mManager.mSystemDriver->renderer()->setScreenViewBaseAddress( it->id, addr );
+        ImGui::Image( mManager.mSystemDriver->renderer()->getScreenTextureID( it->id ), size );
+      }
 
       ImGui::End();
       ImGui::PopStyleVar();
@@ -669,7 +653,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
 
     for ( int id : removedIds )
     {
-      mManager.mDebugger.delScreenView( id );
+      mManager.mDebugger.delScreenView( mManager.mSystemDriver->renderer(), id );
     }
 
     mManager.mDebugger.debugMode( debugMode );
@@ -694,7 +678,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
       // }
       if ( ImGui::Selectable( "New Screen View" ) )
       {
-        mManager.mDebugger.newScreenView();
+        mManager.mDebugger.newScreenView( mManager.mSystemDriver->renderer() );
       }
       ImGui::EndPopup();
     }

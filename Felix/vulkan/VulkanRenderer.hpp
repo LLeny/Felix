@@ -56,12 +56,27 @@ struct DeletionQueue
   }
 };
 
-typedef struct LynxScreen
+typedef struct LynxScreenBuffer
 {
   uint8_t mBuffer[SCREEN_BUFFER_SIZE];
   uint8_t mPalette[32];
   ImageProperties::Rotation mRotation;
-} LynxScreen;
+} LynxScreenBuffer;
+
+typedef struct VkScreenView
+{
+  int id = 0;
+  uint16_t baseAddress{};
+  VmaAllocation allocation{};
+  VulkanTexture texture{};
+  LynxScreenBuffer screenBuffer{};
+  VmaAllocationInfo allocationInfo{};
+  AllocatedBuffer buffer{};
+  VkCommandBuffer commandBuffer{};
+  VkDescriptorSet descriptorSet{};
+  VkPipelineLayout pipelineLayout{};
+  VkPipeline pipeline{};
+} VkScreenView;
 
 class VulkanRenderer : public IRenderer
 {
@@ -69,7 +84,7 @@ public:
   VulkanRenderer();
   ~VulkanRenderer() override;
   void initialize() override;
-  int64_t render( UI &ui ) override;
+  int64_t render( Manager&manager, UI &ui ) override;
   void terminate() override;
   bool shouldClose() override;
   void setTitle( std::string title ) override;
@@ -87,13 +102,13 @@ private:
   VkCommandBuffer createCommandBuffer( VkCommandBufferLevel level, VkCommandPool pool, bool begin );
   void flushCommandBuffer( VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free );
   void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT );
-  void prepareTextureTarget( VulkanTexture *tex, VkFormat format );
-  void destroyTexture( VulkanTexture *tex );
+  
+  void prepareScreenTexture( VkScreenView* screenView, VkFormat format );
+  void destroyScreenTexture( VkScreenView* screenView );
 
   void prepareCompute();
   void destroyCompute();
   void buildComputeCommandBuffer();
-  void destroyComputeCommandBuffer();
   VkPipelineShaderStageCreateInfo loadShader( std::string fileName, VkShaderStageFlagBits stage );
 
 #if defined( VKB_DEBUG )
@@ -104,19 +119,24 @@ private:
   void frameRender( ImGui_ImplVulkanH_Window *wd, ImDrawData *draw_data );
   void framePresent( ImGui_ImplVulkanH_Window *wd );
   void renderImGui( UI &ui );
-  void renderMainScreen();
+  void renderScreenViews( Manager&manager );
   ImVec2 getDimensions() override;
-  ImTextureID getMainScreenTextureID() override;
+  virtual int addScreenView( uint16_t baseAddress ) override;
+  virtual void setScreenViewBaseAddress( int id, uint16_t baseAddress ) override;
+  virtual bool deleteScreenView( int screenId ) override;
+  virtual ImTextureID getScreenTextureID( int screenId ) override;
+  void prepareScreenViews();
+  void destroyScreenViews();
 
-  ImVec2 mDimensions {};
+  ImVec2 mDimensions{};
 
-  std::function<void( std::filesystem::path )> mFileDropCallback = {};
-  std::function<void( int, bool )> mKeyEventCallback = {};
+  std::function<void( std::filesystem::path )> mFileDropCallback{};
+  std::function<void( int, bool )> mKeyEventCallback{};
 
   vkb::Device mVkbDevice;
   VkInstance mInstance = VK_NULL_HANDLE;
   VkPhysicalDevice mPhysicalDevice = VK_NULL_HANDLE;
-  VkPhysicalDeviceProperties mPhysicalDeviceProperties = {};
+  VkPhysicalDeviceProperties mPhysicalDeviceProperties{};
   VkDevice mDevice = VK_NULL_HANDLE;
   uint32_t mQueueFamily = (uint32_t)-1;
   VkQueue mQueue = VK_NULL_HANDLE;
@@ -126,8 +146,8 @@ private:
   VkPipelineCache mPipelineCache = VK_NULL_HANDLE;
   VkCommandPool mCommandPool = VK_NULL_HANDLE;
 
-  VmaAllocator mAllocator = {};
-  VkAllocationCallbacks *mAllocationCallbacks = {};
+  VmaAllocator mAllocator{};
+  VkAllocationCallbacks *mAllocationCallbacks{};
 
   DeletionQueue mMainDeletionQueue;
   std::vector<VkShaderModule> mShaderModules;
@@ -137,36 +157,18 @@ private:
   int mMinImageCount = 2;
   bool mSwapChainRebuild = false;
 
-  std::shared_ptr<VideoSink> mVideoSink;
-  VmaAllocationInfo mLynxScreenAllocationInfo = {};
-  VmaAllocation mLynxScreenAllocation = {};
+  std::shared_ptr<VideoSink> mVideoSink{};
 
-  VulkanTexture mMainScreenTexture = {};
-  AllocatedBuffer mMainScreenBuffer = {};
-  LynxScreen mMainScreen = {};
-  ImageProperties::Rotation mRotation = {};
+  std::vector<VkScreenView> mScreenViews{};
+
+  ImageProperties::Rotation mRotation{};
 
   struct Compute
   {
     VkQueue queue;
     uint32_t queueFamily;
     VkCommandPool commandPool;
-    VkCommandBuffer commandBuffer;
     VkSemaphore semaphore;
     VkDescriptorSetLayout descriptorSetLayout;
-    VkDescriptorSet descriptorSet;
-    VkPipelineLayout pipelineLayout;
-    std::vector<VkPipeline> pipelines;
-    int32_t pipelineIndex = 0;
   } mCompute;
-
-  // struct
-  //{
-  //   VkDescriptorSetLayout   descriptorSetLayout;
-  //   VkDescriptorSet         descriptorSetPreCompute;
-  //   VkDescriptorSet         descriptorSetPostCompute;
-  //   VkPipeline              pipeline;
-  //   VkPipelineLayout        pipelineLayout;
-  //   VkSemaphore             semaphore;
-  // } mGraphics;
 };

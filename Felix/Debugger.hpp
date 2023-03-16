@@ -53,8 +53,8 @@ public:
   bool normalModeOnRun() const;
   void normalModeOnRun( bool value );
   void breakOnBrk( bool value );
-  void newScreenView();
-  void delScreenView( int id );
+  void newScreenView( std::shared_ptr<IRenderer> renderer );
+  void delScreenView( std::shared_ptr<IRenderer> renderer, int id );
 
   void togglePause();
 
@@ -68,9 +68,10 @@ public:
   bool visualizeBreakpoint;
   bool visualizeDisasm;
 
+  std::vector<ScreenView> mScreenViews;
+
 private:
   mutable std::mutex mMutex;
-  std::vector<ScreenView> mScreenViews;
   DebugWindow mHistoryVisualizer;
   bool mDebugMode;  
   bool mVisualizeHistory;

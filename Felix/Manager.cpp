@@ -48,7 +48,7 @@ mImageProperties{}
     {
       if ( mProcessThreads.load() && mSystemDriver )
       {
-        auto renderingTime = mSystemDriver->renderer()->render(mUI);
+        auto renderingTime = mSystemDriver->renderer()->render( *this, mUI );
         std::scoped_lock<std::mutex> l{ mMutex };
         mRenderingTime = mSystemDriver->mRenderingTime;
       }
@@ -124,6 +124,8 @@ void Manager::initialize( std::shared_ptr<ISystemDriver> systemDriver )
 
   mSystemDriver->registerDropFiles( std::bind( &Manager::handleFileDrop, this, std::placeholders::_1 ) );
   mSystemDriver->registerUpdate( std::bind( &Manager::update, this ) );
+
+  mUI.initialize();
 }
 
 IUserInput& Manager::userInput() const

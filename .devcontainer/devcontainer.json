@@ -11,7 +11,8 @@
             "ms-vscode.cmake-tools",
             "xaver.clang-format",
             "nick-rudenko.back-n-forth",
-            "dtoplak.vscode-glsllint"
+            "dtoplak.vscode-glsllint",
+            "vadimcn.vscode-lldb"
           ]
         }
     }

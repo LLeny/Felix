@@ -142,24 +142,20 @@ void Debugger::breakOnBrk( bool value )
   mBreakOnBrk = value;
 }
 
-void Debugger::newScreenView()
+void Debugger::newScreenView( std::shared_ptr<IRenderer> renderer )
 {
-  int minId = 0;
-
-  for ( ;; )
-  {
-    auto it = std::ranges::find( mScreenViews, minId, &ScreenView::id );
-    if ( it == mScreenViews.cend() )
-      break;
-
-    minId += 1;
-  }
-
+  int minId = renderer->addScreenView( 0000 );
   mScreenViews.emplace_back( minId, ScreenViewType::DISPADR );
 }
 
-void Debugger::delScreenView( int id )
+void Debugger::delScreenView( std::shared_ptr<IRenderer> renderer, int id )
 {
+  if( !renderer->deleteScreenView( id ) )
+  {
+    L_ERROR << "Couldn't delete ScreenView from renderer.";
+    return;
+  }
+
   std::erase_if( mScreenViews, [=] ( auto const& sv )
     {
       return sv.id == id;
