@@ -18,10 +18,11 @@ endif()
 
 project( felix VERSION "0.0.0" )
 
+# add_compile_definitions("VKB_DEBUG")
+
 configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp" )
 
 find_package( Vulkan REQUIRED )
-find_package( glfw3 REQUIRED )
 find_package( Threads REQUIRED )
 
 file(READ "libextern/vkmemalloc/src/CMakeLists.txt" FILE_CONTENTS)
@@ -43,6 +44,7 @@ if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++ -lc++abi")
 endif()
 
+add_subdirectory( "libextern/glfw" )
 add_subdirectory( "libextern/fmt" )
 add_subdirectory( "libextern/portaudio" )
 add_subdirectory( "libextern/libwav" )
@@ -77,10 +79,10 @@ target_glsl_shaders( ${PROJECT_NAME}
 
 target_include_directories( ${PROJECT_NAME} PRIVATE 
     ${Vulkan_INCLUDE_DIRS}
-    ${glfw3_INCLUDE_DIRS}
     "Felix/" 
     "libFelix/"
     "Encoder/API"
+    "libextern/glfw/include"
     "libextern/sol2/include"
     "libextern/portaudio/include"
     "libextern/lua"
