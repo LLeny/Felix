@@ -1,5 +1,4 @@
 #pragma once
-#include <openssl/bn.h>
 #include "Log.hpp"
 #include <algorithm>
 #include <iostream>
