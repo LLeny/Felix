@@ -428,6 +428,8 @@ void VulkanRenderer::terminate()
     destroyViewCompute( view );
   }
 
+  mSwapChainRebuild = true;
+
   destroyCompute(); 
 
   for ( auto &shaderModule : mShaderModules )
