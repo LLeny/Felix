@@ -18,7 +18,7 @@ endif()
 
 project( felix VERSION "0.0.0" )
 
-# add_compile_definitions("VKB_DEBUG")
+add_compile_definitions("VKB_DEBUG")
 
 configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp" )
 
@@ -73,9 +73,11 @@ file ( GLOB_RECURSE felix_SOURCES CONFIGURE_DEPENDS
 )
 add_executable( ${PROJECT_NAME} ${felix_SOURCES} )
 
-target_glsl_shaders( ${PROJECT_NAME}
-       PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp"
+target_glsl_shaders( ${PROJECT_NAME} PRIVATE 
+        "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/board_render.comp"
 )
+
 
 target_include_directories( ${PROJECT_NAME} PRIVATE 
     ${Vulkan_INCLUDE_DIRS}
@@ -116,4 +118,11 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E make_directory  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
     COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/"
     MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/lynx_render.comp.spv"
+)
+
+add_custom_command(
+    OUTPUT "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/board_render.comp.spv"
+    COMMAND ${CMAKE_COMMAND} -E make_directory  "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/board_render.comp.spv" "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/shaders/"
+    MAIN_DEPENDENCY "${CMAKE_CURRENT_SOURCE_DIR}/Felix/shaders/board_render.comp.spv"
 )

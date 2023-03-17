@@ -145,66 +145,39 @@ void Manager::quit()
 
 void Manager::updateDebugWindows()
 {
-  // TODO
-  //if ( !mInstance || !mExtendedRenderer )
-  //  return;
+  if ( !mInstance )
+  {
+    return;
+  }
 
-  //if ( !mDebugger.isDebugMode() )
-  //{
-  //  mDebugWindows.mainScreenView.reset();
-  //  return;
-  //}
-
-  // std::unique_lock<std::mutex> l{ mDebugger.mutex };
-
-  //if ( !mDebugWindows.mainScreenView )
-  //{
-  //  mDebugWindows.mainScreenView = mExtendedRenderer->makeMainScreenView();
-  //}
-
-  //auto svs = mDebugger.screenViews();
-  //auto& csvs = mDebugWindows.customScreenViews;
-  ////removing elements in csvs that are not in svs 
-  //auto ret = std::ranges::remove_if( csvs, [&] ( int id ) { return std::ranges::find( svs, id, &ScreenView::id ) == svs.end(); }, [] ( auto const& p ) { return p.first; } );
-  //csvs.erase( ret.begin(), ret.end() );
-  ////add missing elements to csvs that are in svs
-  //for ( auto const& sv : svs )
-  //{
-  //  if ( std::ranges::find( csvs, sv.id, [] ( auto const& p ) { return p.first; } ) == csvs.end() )
-  //  {
-  //    csvs.emplace_back( sv.id, mExtendedRenderer->makeCustomScreenView() );
-  //  }
-  //}
-
- /* auto& cpu = mInstance->debugCPU();   
+  auto &cpu = mInstance->debugCPU();
 
   if ( mDebugger.isHistoryVisualized() )
   {
-    auto& hisVis = mDebugger.historyVisualizer();
+    auto &hisVis = mDebugger.historyVisualizer();
     cpu.copyHistory( std::span<char>( (char*)hisVis.data.data(), hisVis.data.size() ) );
 
-    if ( !mDebugWindows.historyBoard )
-    {
-      mDebugWindows.historyBoard = mExtendedRenderer->makeBoard( hisVis.columns, hisVis.rows );
+    if ( !mDebugWindows.historyBoard.window )
+    { 
+      mDebugWindows.historyBoard.rendererBoardId = mSystemDriver->renderer()->addBoard( hisVis.columns, hisVis.rows, (const char*)hisVis.data.data() );
+      mDebugWindows.historyBoard.window = &hisVis;
     }
   }
-  else if ( !mDebugWindows.historyBoard )
+  else if ( mDebugWindows.historyBoard.window )
   {
-    mDebugWindows.historyBoard.reset();
-  }*/
-// BoardRendering Manager::renderHistoryWindow()
-// {
-  // TODO
-  /*if ( mDebugger.isHistoryVisualized() && mDebugWindows.historyBoard )
-  {
-    auto win = mDebugger.historyVisualizer();
-    auto tex = mDebugWindows.historyBoard->render( std::span<uint8_t const>{ win.data.data(), win.data.size() } );
-    return { true, tex, 8.0f * win.columns , 16.0f * win.rows };
+    mDebugWindows.historyBoard.window = nullptr;
+    mSystemDriver->renderer()->deleteView( mDebugWindows.historyBoard.rendererBoardId );
+    mDebugWindows.historyBoard.rendererBoardId = 0;
   }
-  else*/
-//   {
-//     return { mDebugger.isHistoryVisualized() };
-//   }
+}
+
+BoardRendering Manager::renderHistoryWindow()
+{
+  auto win = mDebugger.historyVisualizer();
+  mDebugWindows.historyBoard.enabled = mDebugger.isHistoryVisualized();
+  mDebugWindows.historyBoard.width = 8.0f * win.columns;
+  mDebugWindows.historyBoard.height = 16.0f * win.rows;
+  return mDebugWindows.historyBoard;
 }
 
 void Manager::processLua( std::filesystem::path const& path )

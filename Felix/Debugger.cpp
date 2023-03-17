@@ -150,16 +150,8 @@ void Debugger::newScreenView( std::shared_ptr<IRenderer> renderer )
 
 void Debugger::delScreenView( std::shared_ptr<IRenderer> renderer, int id )
 {
-  if( !renderer->deleteScreenView( id ) )
-  {
-    L_ERROR << "Couldn't delete ScreenView from renderer.";
-    return;
-  }
-
-  std::erase_if( mScreenViews, [=] ( auto const& sv )
-    {
-      return sv.id == id;
-    } );
+  std::erase_if( mScreenViews, [=] ( auto const& sv ) { return sv.id == id; } );
+  renderer->deleteView( id );
 }
 
 void Debugger::togglePause()

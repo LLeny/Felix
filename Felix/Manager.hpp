@@ -77,10 +77,9 @@ private:
     WatchEditor watchEditor;
     DisasmEditor disasmEditor;
     BreakpointEditor breakpointEditor;
-    //std::shared_ptr<IBoard> historyBoard;
+    BoardRendering historyBoard;
   } mDebugWindows;
 
-  //UI mUI;
   sol::state mLua;
   std::atomic_bool mProcessThreads;
   std::atomic_bool mJoinThreads;

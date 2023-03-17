@@ -1,0 +1,30 @@
+#version 450
+#extension GL_EXT_shader_explicit_arithmetic_types_int8 : enable
+
+layout( local_size_x = 16, local_size_y = 16 ) in;
+
+layout( set = 0, binding = 0 ) readonly buffer BoardBuffer
+{
+  uint8_t content[ 256 * 256 ];
+  uint8_t font[ 256 * 8 * 16 ];
+}
+boardBuffer;
+
+layout( set = 0, binding = 1, rgba8 ) writeonly uniform image2D resultImage;
+
+void main()
+{
+  ivec2 charPos = { int(gl_GlobalInvocationID.x / 8), int(gl_GlobalInvocationID.y / 16) };
+  ivec2 textureSize = imageSize( resultImage );
+  int charsPerLine = textureSize.x / 8;
+
+  int char = boardBuffer.content[ charPos.y * charsPerLine + charPos.x ];
+
+  char *= 8 * 16;
+  char += int(gl_GlobalInvocationID.y) % 16 * 8;
+  char += int(gl_GlobalInvocationID.x) % 8;
+
+  float pix = boardBuffer.font[char] > 0 ? 0 : 1;
+
+  imageStore( resultImage, ivec2( gl_GlobalInvocationID.xy ), vec4( pix, pix, pix, 1 ) );
+}

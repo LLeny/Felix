@@ -2,6 +2,7 @@
 #include "VulkanRenderer.hpp"
 #include "Manager.hpp"
 #include <vulkan/vulkan.h>
+#include "fonts.hpp"
 
 #if defined( VKB_DEBUG )
 
@@ -148,16 +149,10 @@ void VulkanRenderer::setupVulkan( const char **extensions, uint32_t extensions_c
   VkCommandPoolCreateInfo cmdPoolInfo = vkinit::command_pool_create_info( mQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT );
   VK_CHECK( vkCreateCommandPool( mDevice, &cmdPoolInfo, nullptr, &mCommandPool ) );
 
-  mMainDeletionQueue.push_function( [&]() 
-  { 
-    destroyScreenViews();
-    destroyCompute(); 
-    for ( auto &shaderModule : mShaderModules )
-    {
-      vkDestroyShaderModule( mDevice, shaderModule, nullptr );
-    }
-    vmaDestroyAllocator( mAllocator ); 
-  } );
+  mCompute.screenViewShader = loadShader( "shaders/lynx_render.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT );
+  mCompute.boardShader = loadShader( "shaders/board_render.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT );
+
+  prepareCompute();
 }
 
 void VulkanRenderer::setupVulkanWindow( ImGui_ImplVulkanH_Window *wd, VkSurfaceKHR surface, int width, int height )
@@ -197,14 +192,12 @@ void VulkanRenderer::cleanupVulkanWindow()
   ImGui_ImplVulkanH_DestroyWindow( mInstance, mDevice, &mMainWindowData, mAllocationCallbacks );
 }
 
-ImTextureID VulkanRenderer::getScreenTextureID( int screenId )
-{
-  auto found = std::find_if( mScreenViews.begin(), mScreenViews.end(), [screenId](const VkScreenView &v) { return v.id == screenId; } );
-  return found->texture.mDS;
-}
-
 void VulkanRenderer::frameRender( ImGui_ImplVulkanH_Window *wd, ImDrawData *draw_data )
 {
+  if ( mSwapChainRebuild )
+  {
+    return;
+  }
   VkSemaphore image_acquired_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].ImageAcquiredSemaphore;
   VkSemaphore render_complete_semaphore = wd->FrameSemaphores[wd->SemaphoreIndex].RenderCompleteSemaphore;
   VkResult err = vkAcquireNextImageKHR( mDevice, wd->Swapchain, UINT64_MAX, image_acquired_semaphore, VK_NULL_HANDLE, &wd->FrameIndex );
@@ -234,10 +227,24 @@ void VulkanRenderer::frameRender( ImGui_ImplVulkanH_Window *wd, ImDrawData *draw
   VkPipelineStageFlags waitStageMask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
 
   std::vector<VkCommandBuffer> cmdbuffers{};
-  for( auto& view : mScreenViews )
+
+  for( auto& view : mScreenViewViews )
   {
+    if( !view.ready )
+    {
+      continue;
+    }
     cmdbuffers.push_back( view.commandBuffer );
   }
+  for( auto& view : mBoardViews )
+  {
+    if( !view.ready )
+    {
+      continue;
+    }
+    cmdbuffers.push_back( view.commandBuffer );
+  }
+
   VkSubmitInfo computeSubmitInfo = vkinit::submit_info( cmdbuffers.data() );
   computeSubmitInfo.commandBufferCount = cmdbuffers.size();
   computeSubmitInfo.pWaitSemaphores = &image_acquired_semaphore;
@@ -423,7 +430,23 @@ void VulkanRenderer::terminate()
 {
   VK_CHECK( vkDeviceWaitIdle( mDevice ) );
 
-  mMainDeletionQueue.flush();
+  for( auto& view : mScreenViewViews )
+  {
+    destroyViewTexture( view );
+  }
+  for( auto& view : mBoardViews )
+  {
+    destroyViewTexture( view );
+  }
+
+  destroyCompute(); 
+
+  for ( auto &shaderModule : mShaderModules )
+  {
+    vkDestroyShaderModule( mDevice, shaderModule, nullptr );
+  }
+  
+  vmaDestroyAllocator( mAllocator ); 
 
   ImGui_ImplVulkan_Shutdown();
   ImGui_ImplGlfw_Shutdown();
@@ -440,150 +463,129 @@ int64_t VulkanRenderer::render( Manager& manager, UI &ui )
 {
   renderImGui( ui );
   renderScreenViews( manager );
+  renderBoards();
   return 1;
-}
-
-void VulkanRenderer::renderScreenViews( Manager& manager )
-{
-  auto frame = mVideoSink->pullNextFrame();
-
-  if( !frame )
-  {
-    return;
-  }
-
-  for ( auto& view : mScreenViews )
-  {
-    LynxScreenBuffer* screen = (LynxScreenBuffer*)view.allocationInfo.pMappedData;
-    const uint8_t* srcBuffer;
-    screen->mRotation = mRotation;
-
-    if( !view.baseAddress )
-    {
-      srcBuffer = frame->data();
-    }
-    else
-    {
-      srcBuffer = manager.mInstance->debugRAM() + view.baseAddress;
-    }
-
-    memcpy( screen->mBuffer, srcBuffer, SCREEN_BUFFER_SIZE );
-    memcpy( screen->mPalette, mVideoSink->getPalettePointer(), 32 );
-  }
 }
 
 VkPipelineShaderStageCreateInfo VulkanRenderer::loadShader( std::string fileName, VkShaderStageFlagBits stage )
 {
   std::ifstream is( fileName, std::ios::binary | std::ios::in | std::ios::ate );
 
-  if ( is.is_open() )
-  {
-    size_t size = is.tellg();
-    is.seekg( 0, std::ios::beg );
-    char *shaderCode = new char[size];
-    is.read( shaderCode, size );
-    is.close();
-
-    assert( size > 0 );
-
-    VkShaderModule shaderModule;
-    VkShaderModuleCreateInfo moduleCreateInfo{};
-    moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    moduleCreateInfo.codeSize = size;
-    moduleCreateInfo.pCode = (uint32_t *)shaderCode;
-
-    VK_CHECK( vkCreateShaderModule( mDevice, &moduleCreateInfo, NULL, &shaderModule ) );
-
-    delete[] shaderCode;
-
-    auto shaderStage = vkinit::pipeline_shader_stage_create_info( stage, shaderModule );
-    assert( shaderStage.module != VK_NULL_HANDLE );
-
-    mShaderModules.push_back( shaderStage.module );
-
-    return shaderStage;
-  }
-  else
+  if ( !is.is_open() )
   {
     L_ERROR << "Error: Could not open shader file \"" << fileName << "\"";
-    return {};
+    abort();
   }
+
+  size_t size = is.tellg();
+  is.seekg( 0, std::ios::beg );
+  char *shaderCode = new char[size];
+  is.read( shaderCode, size );
+  is.close();
+
+  assert( size > 0 );
+
+  VkShaderModule shaderModule;
+  VkShaderModuleCreateInfo moduleCreateInfo{};
+  moduleCreateInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+  moduleCreateInfo.codeSize = size;
+  moduleCreateInfo.pCode = (uint32_t *)shaderCode;
+
+  VK_CHECK( vkCreateShaderModule( mDevice, &moduleCreateInfo, NULL, &shaderModule ) );
+
+  delete[] shaderCode;
+
+  auto shaderStage = vkinit::pipeline_shader_stage_create_info( stage, shaderModule );
+  assert( shaderStage.module != VK_NULL_HANDLE );
+
+  mShaderModules.push_back( shaderStage.module );
+
+  return shaderStage;
 }
 
-void VulkanRenderer::buildComputeCommandBuffer()
+void VulkanRenderer::buildComputeCommandBuffer( VkTextureView& view )
 {
   vkQueueWaitIdle( mCompute.queue );
 
-  for( auto& view : mScreenViews )
-  {
-    auto cmdBufAllocateInfo = vkinit::command_buffer_allocate_info( mCompute.commandPool, 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
-    VK_CHECK( vkAllocateCommandBuffers( mDevice, &cmdBufAllocateInfo, &view.commandBuffer ) );
+  auto cmdBufAllocateInfo = vkinit::command_buffer_allocate_info( mCompute.commandPool, 1, VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+  VK_CHECK( vkAllocateCommandBuffers( mDevice, &cmdBufAllocateInfo, &view.commandBuffer ) );
 
-    auto cmdBufInfo = vkinit::command_buffer_begin_info();
+  auto cmdBufInfo = vkinit::command_buffer_begin_info();
 
-    VK_CHECK( vkBeginCommandBuffer( view.commandBuffer, &cmdBufInfo ) );
+  VK_CHECK( vkBeginCommandBuffer( view.commandBuffer, &cmdBufInfo ) );
 
-    vkCmdBindPipeline( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipeline );
-    vkCmdBindDescriptorSets( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipelineLayout, 0, 1, &view.descriptorSet, 0, 0 );
+  vkCmdBindPipeline( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipeline );
+  vkCmdBindDescriptorSets( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipelineLayout, 0, 1, &view.descriptorSet, 0, 0 );
 
-    vkCmdDispatch( view.commandBuffer, SCREEN_WIDTH / 16, SCREEN_HEIGHT / 6, 1 );
+  vkCmdDispatch( view.commandBuffer, view.texture.mWidth / 16, view.texture.mHeight / 6, 1 );
 
-    vkEndCommandBuffer( view.commandBuffer );
-  }
+  vkEndCommandBuffer( view.commandBuffer );
+
+  view.ready = true;
+}
+
+void VulkanRenderer::prepareViewCompute( VkTextureView& view, size_t bufferSize, VkPipelineShaderStageCreateInfo& shader, VkDescriptorSetLayout& descLayout )
+{
+  auto pPipelineLayoutCreateInfo = vkinit::pipeline_layout_create_info();
+  pPipelineLayoutCreateInfo.setLayoutCount = 1;
+  pPipelineLayoutCreateInfo.pSetLayouts = &descLayout;
+  VK_CHECK( vkCreatePipelineLayout( mDevice, &pPipelineLayoutCreateInfo, nullptr, &view.pipelineLayout ) );
+
+  auto allocInfo = vkinit::descriptorset_allocate_info( mDescriptorPool, &descLayout, 1 );
+  VK_CHECK( vkAllocateDescriptorSets( mDevice, &allocInfo, &view.descriptorSet ) );
+  
+  VkBufferCreateInfo screenbufferInfo{};
+  screenbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+  screenbufferInfo.pNext = nullptr;
+  screenbufferInfo.size = bufferSize;
+  screenbufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+  VmaAllocationCreateInfo screenvmaallocInfo{};
+  screenvmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  screenvmaallocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+
+  VK_CHECK( vmaCreateBuffer( mAllocator, &screenbufferInfo, &screenvmaallocInfo, &view.buffer._buffer, &view.buffer._allocation, &view.allocationInfo ) );
+  
+  VkDescriptorBufferInfo screenbinfo;
+  screenbinfo.buffer = view.buffer._buffer;
+  screenbinfo.offset = 0;
+  screenbinfo.range = bufferSize;
+
+  auto descBuff = vkinit::write_descriptor_buffer( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, view.descriptorSet, &screenbinfo, 0 );
+  auto descImages = vkinit::write_descriptor_image( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, view.descriptorSet, &view.texture.mDescriptor, 1 );
+
+  std::vector<VkWriteDescriptorSet> computeWriteDescriptorSets { descBuff, descImages };
+
+  vkUpdateDescriptorSets( mDevice, computeWriteDescriptorSets.size(), computeWriteDescriptorSets.data(), 0, NULL );
+
+  auto computePipelineCreateInfo = vkinit::computepipeline_create_info( view.pipelineLayout, 0 );
+
+  computePipelineCreateInfo.stage = shader;
+  
+  VK_CHECK( vkCreateComputePipelines( mDevice, mPipelineCache, 1, &computePipelineCreateInfo, nullptr, &view.pipeline ) );
+
+  buildComputeCommandBuffer( view );
 }
 
 void VulkanRenderer::prepareCompute()
 {
-  std::vector<VkDescriptorSetLayoutBinding> setLayoutBindings = 
+  std::vector<VkDescriptorSetLayoutBinding> screenViewSetLayoutBindings = 
   {
     vkinit::descriptorset_layout_binding( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0 ),
     vkinit::descriptorset_layout_binding( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1 ),
   };
 
-  auto descriptorLayout = vkinit::descriptorset_layout_create_info( setLayoutBindings );
-  VK_CHECK( vkCreateDescriptorSetLayout( mDevice, &descriptorLayout, nullptr, &mCompute.descriptorSetLayout ) );
+  auto screenViewDescriptorLayout = vkinit::descriptorset_layout_create_info( screenViewSetLayoutBindings );
+  VK_CHECK( vkCreateDescriptorSetLayout( mDevice, &screenViewDescriptorLayout, nullptr, &mCompute.screenViewDescriptorSetLayout ) );
 
-  for( auto& view : mScreenViews )
+  std::vector<VkDescriptorSetLayoutBinding> boardSetLayoutBindings = 
   {
-    auto pPipelineLayoutCreateInfo = vkinit::pipeline_layout_create_info();
-    pPipelineLayoutCreateInfo.setLayoutCount = 1;
-    pPipelineLayoutCreateInfo.pSetLayouts = &mCompute.descriptorSetLayout;
-    VK_CHECK( vkCreatePipelineLayout( mDevice, &pPipelineLayoutCreateInfo, nullptr, &view.pipelineLayout ) );
+    vkinit::descriptorset_layout_binding( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0 ),
+    vkinit::descriptorset_layout_binding( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1 ),
+  };
 
-    auto allocInfo = vkinit::descriptorset_allocate_info( mDescriptorPool, &mCompute.descriptorSetLayout, 1 );
-    VK_CHECK( vkAllocateDescriptorSets( mDevice, &allocInfo, &view.descriptorSet ) );
-    
-    VkBufferCreateInfo screenbufferInfo{};
-    screenbufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    screenbufferInfo.pNext = nullptr;
-    screenbufferInfo.size = sizeof( LynxScreenBuffer );
-    screenbufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-    VmaAllocationCreateInfo screenvmaallocInfo{};
-    screenvmaallocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    screenvmaallocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
-
-    VK_CHECK( vmaCreateBuffer( mAllocator, &screenbufferInfo, &screenvmaallocInfo, &view.buffer._buffer, &view.buffer._allocation, &view.allocationInfo ) );
-    
-    VkDescriptorBufferInfo screenbinfo;
-    screenbinfo.buffer = view.buffer._buffer;
-    screenbinfo.offset = 0;
-    screenbinfo.range = sizeof( LynxScreenBuffer );
-
-    auto descBuff = vkinit::write_descriptor_buffer( VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, view.descriptorSet, &screenbinfo, 0 );
-    auto descImages = vkinit::write_descriptor_image( VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, view.descriptorSet, &view.texture.mDescriptor, 1 );
-
-    std::vector<VkWriteDescriptorSet> computeWriteDescriptorSets { descBuff, descImages };
-
-    vkUpdateDescriptorSets( mDevice, computeWriteDescriptorSets.size(), computeWriteDescriptorSets.data(), 0, NULL );
-
-    auto computePipelineCreateInfo = vkinit::computepipeline_create_info( view.pipelineLayout, 0 );
-
-    std::string fileName = "shaders/lynx_render.comp.spv";
-    computePipelineCreateInfo.stage = loadShader( fileName, VK_SHADER_STAGE_COMPUTE_BIT );
-    
-    VK_CHECK( vkCreateComputePipelines( mDevice, mPipelineCache, 1, &computePipelineCreateInfo, nullptr, &view.pipeline ) );
-  }
+  auto boardDescriptorLayout = vkinit::descriptorset_layout_create_info( boardSetLayoutBindings );
+  VK_CHECK( vkCreateDescriptorSetLayout( mDevice, &boardDescriptorLayout, nullptr, &mCompute.boardDescriptorSetLayout ) );
 
   VkCommandPoolCreateInfo cmdPoolInfo = {};
   cmdPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -593,22 +595,22 @@ void VulkanRenderer::prepareCompute()
 
   VkSemaphoreCreateInfo semaphoreCreateInfo = vkinit::semaphore_create_info();
   VK_CHECK( vkCreateSemaphore( mDevice, &semaphoreCreateInfo, nullptr, &mCompute.semaphore ) );
+}
 
-  buildComputeCommandBuffer();
+void VulkanRenderer::destroyViewCompute( VkTextureView& view )
+{
+  view.ready = false;
+  vkFreeCommandBuffers( mDevice, mCompute.commandPool, 1, &view.commandBuffer );
+  vmaDestroyBuffer( mAllocator, view.buffer._buffer, view.buffer._allocation );
+  vkDestroyPipelineLayout( mDevice, view.pipelineLayout, nullptr );
+  vkFreeDescriptorSets( mDevice, mDescriptorPool, 1, &view.descriptorSet );
 }
 
 void VulkanRenderer::destroyCompute()
 {
-  for( auto& view : mScreenViews )
-  {
-    vkFreeCommandBuffers( mDevice, mCompute.commandPool, 1, &view.commandBuffer );
-    vmaDestroyBuffer( mAllocator, view.buffer._buffer, view.buffer._allocation );
-    vkFreeDescriptorSets( mDevice, mDescriptorPool, 1, &view.descriptorSet );
-    vkDestroyPipelineLayout( mDevice, view.pipelineLayout, nullptr );
-  }
-
   vkDestroySemaphore( mDevice, mCompute.semaphore, nullptr );
-  vkDestroyDescriptorSetLayout( mDevice, mCompute.descriptorSetLayout, nullptr );
+  vkDestroyDescriptorSetLayout( mDevice, mCompute.screenViewDescriptorSetLayout, nullptr );
+  vkDestroyDescriptorSetLayout( mDevice, mCompute.boardDescriptorSetLayout, nullptr );
   vkDestroyCommandPool( mDevice, mCompute.commandPool, nullptr );
 }
 
@@ -714,136 +716,6 @@ void VulkanRenderer::setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, V
   vkCmdPipelineBarrier( cmdbuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &imageMemoryBarrier );
 }
 
-void VulkanRenderer::prepareScreenTexture( VkScreenView* screenView, VkFormat format )
-{
-  uint32_t w = SCREEN_WIDTH;
-  uint32_t h = SCREEN_HEIGHT;
-
-  if ( (int)mRotation )
-  {
-    w = SCREEN_HEIGHT;
-    h = SCREEN_WIDTH;
-  }
-
-  VkFormatProperties formatProperties;
-  vkGetPhysicalDeviceFormatProperties( mPhysicalDevice, format, &formatProperties );
-  assert( formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT );
-
-  screenView->texture.mWidth = w;
-  screenView->texture.mHeight = h;
-
-  auto imageCreateInfo = vkinit::image_create_info( format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, { w, h, 1 } );
-
-  std::vector<uint32_t> queueFamilyIndices;
-  auto grQueue = mQueueFamily;
-  auto cpQueue = mCompute.queueFamily;
-  if ( grQueue != cpQueue )
-  {
-    queueFamilyIndices = { grQueue, cpQueue };
-    imageCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
-    imageCreateInfo.queueFamilyIndexCount = 2;
-    imageCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
-  }
-
-  VmaAllocationCreateInfo allocCreateInfo = {};
-  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
-  allocCreateInfo.priority = 1.0f;
-
-  vmaCreateImage( mAllocator, &imageCreateInfo, &allocCreateInfo, &screenView->texture.mImage, &screenView->allocation, nullptr );
-
-  VkCommandBuffer layoutCmd = createCommandBuffer( VK_COMMAND_BUFFER_LEVEL_PRIMARY, mCommandPool, true );
-
-  screenView->texture.mImageLayout = VK_IMAGE_LAYOUT_GENERAL;
-  setImageLayout( layoutCmd, screenView->texture.mImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, screenView->texture.mImageLayout );
-
-  flushCommandBuffer( layoutCmd, mQueue, mCommandPool, true );
-
-  VkImageViewCreateInfo view = vkinit::imageview_create_info( format, screenView->texture.mImage, 0 );
-  view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
-  VK_CHECK( vkCreateImageView( mDevice, &view, nullptr, &screenView->texture.mView ) );
-
-  VkSamplerCreateInfo sampler = vkinit::sampler_create_info( VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER );
-  sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-  sampler.mipLodBias = 0.0f;
-  sampler.anisotropyEnable = VK_FALSE;
-  sampler.compareOp = VK_COMPARE_OP_NEVER;
-  sampler.minLod = 0.0f;
-  sampler.maxLod = VK_LOD_CLAMP_NONE;
-  sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
-  VK_CHECK( vkCreateSampler( mDevice, &sampler, nullptr, &screenView->texture.mSampler ) );
-
-  screenView->texture.mDescriptor.imageLayout = screenView->texture.mImageLayout;
-  screenView->texture.mDescriptor.imageView = screenView->texture.mView;
-  screenView->texture.mDescriptor.sampler = screenView->texture.mSampler;
-  screenView->texture.mDevice = mDevice;
-
-  screenView->texture.mDS = ImGui_ImplVulkan_AddTexture( screenView->texture.mSampler, screenView->texture.mView, VK_IMAGE_LAYOUT_GENERAL );
-}
-
-void VulkanRenderer::destroyScreenTexture( VkScreenView* screenView )
-{
-  L_DEBUG << "VulkanRenderer destroyScreenTexture: " << screenView->id;
-  if( screenView->texture.mDS )
-  {
-    ImGui_ImplVulkan_RemoveTexture( screenView->texture.mDS );
-  }
-  vkDestroyImageView( mDevice, screenView->texture.mView, nullptr );
-  vmaDestroyImage( mAllocator, screenView->texture.mImage, screenView->allocation );
-}
-
-int VulkanRenderer::addScreenView( uint16_t baseAddress )
-{
-  vkQueueWaitIdle( mCompute.queue );
-
-  destroyScreenViews();
-  destroyCompute();
-
-  VkScreenView v{};
-
-  auto found = std::ranges::max_element( mScreenViews, [] (const VkScreenView& a, const VkScreenView& b) { return a.id < b.id; } );
-
-  if( found != mScreenViews.end() )
-  {
-    v.id = found->id + 1;
-  }
-  v.baseAddress = baseAddress;
-
-  mScreenViews.push_back( v );
-
-  prepareScreenViews();
-  prepareCompute();  
-
-  return v.id;
-}
-
-void VulkanRenderer::setScreenViewBaseAddress( int screenId, uint16_t baseAddress )
-{
-  auto found = std::find_if( mScreenViews.begin(), mScreenViews.end(), [screenId](const VkScreenView &v) { return v.id == screenId; } );
-  found->baseAddress = baseAddress;
-}
-
-bool VulkanRenderer::deleteScreenView( int screenViewId )
-{
-  if( screenViewId >= mScreenViews.size() || !mScreenViews[screenViewId].texture.mDS )
-  {
-    L_ERROR << "VulkanRenderer deleteScreenView: " << screenViewId << " not found or already deleted.";
-    return false;
-  }
-
-  vkQueueWaitIdle( mCompute.queue );
-
-  destroyScreenViews();
-  destroyCompute();
-
-  std::erase_if( mScreenViews, [screenViewId](const VkScreenView& v) { return v.id == screenViewId; } );
-
-  prepareScreenViews();
-  prepareCompute();  
-
-  return true;
-}
-
 bool VulkanRenderer::shouldClose()
 {
   return glfwWindowShouldClose( mMainWindow );
@@ -859,7 +731,6 @@ void VulkanRenderer::renderImGui( UI &ui )
 
   if ( mSwapChainRebuild )
   {
-    L_DEBUG << "Vulkan swapchain rebuild";
     int width, height;
     glfwGetFramebufferSize( mMainWindow, &width, &height );
     if ( width > 0 && height > 0 )
@@ -912,28 +783,301 @@ void VulkanRenderer::setRotation( ImageProperties::Rotation rotation )
 
   vkQueueWaitIdle( mCompute.queue );
 
-  destroyScreenViews();
-  destroyCompute();
-
-  prepareScreenViews();
-  prepareCompute();
-}
-
-void VulkanRenderer::prepareScreenViews()
-{
-  for( auto& view : mScreenViews )
+  for( auto& view : mScreenViewViews )
   {
-    prepareScreenTexture( &view, VK_FORMAT_R8G8B8A8_UNORM );
-  }
-}
-
-void VulkanRenderer::destroyScreenViews()
-{
-  for( auto& view : mScreenViews )
-  {
-    if ( view.texture.mDS != nullptr )
+    if( view.type != RendererTextureType::RendererTextureType_ScreenView )
     {
-      destroyScreenTexture( &view );
+      continue;
     }
+
+    destroyViewTexture( view );
+    destroyViewCompute( view );
+
+    prepareViewTexture( (VkScreenView&)view, VK_FORMAT_R8G8B8A8_UNORM );
+    prepareViewCompute( view, sizeof( LynxScreenBuffer ), mCompute.screenViewShader, mCompute.screenViewDescriptorSetLayout );
   }
+}
+
+void VulkanRenderer::renderScreenViews( Manager& manager )
+{
+  auto frame = mVideoSink->pullNextFrame();
+
+  if( !frame )
+  {
+    return;
+  }
+
+  for ( auto& view : mScreenViewViews )
+  {
+    if( !view.ready )
+    {
+      continue;
+    }
+
+    LynxScreenBuffer* screen = (LynxScreenBuffer*)view.allocationInfo.pMappedData;
+    const uint8_t* srcBuffer;
+    screen->mRotation = mRotation;
+
+    if( !view.baseAddress )
+    {
+      srcBuffer = frame->data();
+    }
+    else
+    {
+      srcBuffer = manager.mInstance->debugRAM() + view.baseAddress;
+    }
+
+    memcpy( screen->mBuffer, srcBuffer, SCREEN_BUFFER_SIZE );
+    memcpy( screen->mPalette, mVideoSink->getPalettePointer(), 32 );
+  }
+}
+
+ImTextureID VulkanRenderer::getTextureID( int viewId )
+{
+  auto screen = std::find_if( mScreenViewViews.begin(), mScreenViewViews.end(), [viewId](const VkScreenView &v) { return v.id == viewId; } );
+
+  if( screen != mScreenViewViews.end() && screen->ready )
+  {
+    return screen->texture.mDS;
+  }
+  
+  auto board = std::find_if( mBoardViews.begin(), mBoardViews.end(), [viewId](const VkBoard &v) { return v.id == viewId; } );
+
+  if( board != mBoardViews.end() && board->ready )
+  {
+    return board->texture.mDS;
+  }
+
+  return nullptr;
+}
+
+void VulkanRenderer::setScreenViewBaseAddress( int screenId, uint16_t baseAddress )
+{
+  auto found = std::find_if( mScreenViewViews.begin(), mScreenViewViews.end(), [screenId](const VkScreenView &v) { return v.id == screenId; } );
+  found->baseAddress = baseAddress;
+}
+
+void VulkanRenderer::prepareViewTexture( VkScreenView& screenView, VkFormat format )
+{
+  uint32_t w = SCREEN_WIDTH;
+  uint32_t h = SCREEN_HEIGHT;
+
+  if ( (int)mRotation )
+  {
+    w = SCREEN_HEIGHT;
+    h = SCREEN_WIDTH;
+  }
+
+  VkFormatProperties formatProperties;
+  vkGetPhysicalDeviceFormatProperties( mPhysicalDevice, format, &formatProperties );
+  assert( formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT );
+
+  screenView.texture.mWidth = w;
+  screenView.texture.mHeight = h;
+
+  auto imageCreateInfo = vkinit::image_create_info( format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, { w, h, 1 } );
+
+  std::vector<uint32_t> queueFamilyIndices;
+  auto grQueue = mQueueFamily;
+  auto cpQueue = mCompute.queueFamily;
+  if ( grQueue != cpQueue )
+  {
+    queueFamilyIndices = { grQueue, cpQueue };
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+    imageCreateInfo.queueFamilyIndexCount = 2;
+    imageCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+  }
+
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocCreateInfo.priority = 1.0f;
+
+  vmaCreateImage( mAllocator, &imageCreateInfo, &allocCreateInfo, &screenView.texture.mImage, &screenView.allocation, nullptr );
+
+  VkCommandBuffer layoutCmd = createCommandBuffer( VK_COMMAND_BUFFER_LEVEL_PRIMARY, mCommandPool, true );
+
+  screenView.texture.mImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+  setImageLayout( layoutCmd, screenView.texture.mImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, screenView.texture.mImageLayout );
+
+  flushCommandBuffer( layoutCmd, mQueue, mCommandPool, true );
+
+  VkImageViewCreateInfo view = vkinit::imageview_create_info( format, screenView.texture.mImage, 0 );
+  view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+  VK_CHECK( vkCreateImageView( mDevice, &view, nullptr, &screenView.texture.mView ) );
+
+  VkSamplerCreateInfo sampler = vkinit::sampler_create_info( VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER );
+  sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler.mipLodBias = 0.0f;
+  sampler.anisotropyEnable = VK_FALSE;
+  sampler.compareOp = VK_COMPARE_OP_NEVER;
+  sampler.minLod = 0.0f;
+  sampler.maxLod = VK_LOD_CLAMP_NONE;
+  sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+  VK_CHECK( vkCreateSampler( mDevice, &sampler, nullptr, &screenView.texture.mSampler ) );
+
+  screenView.texture.mDescriptor.imageLayout = screenView.texture.mImageLayout;
+  screenView.texture.mDescriptor.imageView = screenView.texture.mView;
+  screenView.texture.mDescriptor.sampler = screenView.texture.mSampler;
+  screenView.texture.mDevice = mDevice;
+
+  screenView.texture.mDS = ImGui_ImplVulkan_AddTexture( screenView.texture.mSampler, screenView.texture.mView, VK_IMAGE_LAYOUT_GENERAL );
+}
+
+bool VulkanRenderer::deleteView( int viewId )
+{
+  vkQueueWaitIdle( mCompute.queue );
+
+  VkTextureView view;
+
+  auto sv = std::find_if( mScreenViewViews.begin(), mScreenViewViews.end(), [viewId](const VkTextureView& b) { return b.id == viewId; } );
+
+  if( sv == mScreenViewViews.end() )
+  {
+    auto b = std::find_if( mBoardViews.begin(), mBoardViews.end(), [viewId](const VkTextureView& b) { return b.id == viewId; } );
+
+    if( b == mBoardViews.end() )
+    {
+      return false;
+    }
+    view = *b;
+  }
+  else
+  {
+    view = *sv;
+  }
+
+  destroyViewTexture( view );
+  destroyViewCompute( view );
+
+  mSwapChainRebuild = true;
+
+  std::erase_if( mScreenViewViews, [viewId](const VkTextureView& v) { return v.id == viewId; } );
+  std::erase_if( mBoardViews, [viewId](const VkTextureView& v) { return v.id == viewId; } );
+  
+  return true;
+}
+
+void VulkanRenderer::destroyViewTexture( VkTextureView& view )
+{
+  view.ready = false;
+  if( view.texture.mDS )
+  {
+    ImGui_ImplVulkan_RemoveTexture( view.texture.mDS );
+    view.texture.mDS = nullptr;
+  }
+  vkDestroyImageView( mDevice, view.texture.mView, nullptr );
+  vmaDestroyImage( mAllocator, view.texture.mImage, view.allocation );
+}
+
+int VulkanRenderer::addScreenView( uint16_t baseAddress )
+{
+  vkQueueWaitIdle( mCompute.queue );
+
+  VkScreenView v{};
+
+  v.type = RendererTextureType_ScreenView;
+  v.id = mViewId++;
+  v.baseAddress = baseAddress;
+
+  prepareViewTexture( v, VK_FORMAT_R8G8B8A8_UNORM );
+  prepareViewCompute( v, sizeof( LynxScreenBuffer ), mCompute.screenViewShader, mCompute.screenViewDescriptorSetLayout );  
+
+  mScreenViewViews.push_back( v );
+
+  return v.id;
+}
+
+void VulkanRenderer::renderBoards()
+{
+  for ( auto& board : mBoardViews )
+  {
+    if( !board.ready )
+    {
+      continue;
+    }
+
+    BoardBuffer* boardBuffer = (BoardBuffer*)board.allocationInfo.pMappedData;
+    memcpy( boardBuffer->content, board.content, board.width * board.height );
+  }
+}
+
+void VulkanRenderer::prepareViewTexture( VkBoard& board, VkFormat format )
+{
+  VkFormatProperties formatProperties;
+  vkGetPhysicalDeviceFormatProperties( mPhysicalDevice, format, &formatProperties );
+  assert( formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT );
+
+  board.texture.mWidth = board.width * mFontWidth;
+  board.texture.mHeight = board.height * mFontHeight;
+
+  auto imageCreateInfo = vkinit::image_create_info( format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT, { board.texture.mWidth, board.texture.mHeight, 1 } );
+
+  std::vector<uint32_t> queueFamilyIndices;
+  auto grQueue = mQueueFamily;
+  auto cpQueue = mCompute.queueFamily;
+  if ( grQueue != cpQueue )
+  {
+    queueFamilyIndices = { grQueue, cpQueue };
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_CONCURRENT;
+    imageCreateInfo.queueFamilyIndexCount = 2;
+    imageCreateInfo.pQueueFamilyIndices = queueFamilyIndices.data();
+  }
+
+  VmaAllocationCreateInfo allocCreateInfo = {};
+  allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+  allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+  allocCreateInfo.priority = 1.0f;
+
+  vmaCreateImage( mAllocator, &imageCreateInfo, &allocCreateInfo, &board.texture.mImage, &board.allocation, nullptr );
+
+  VkCommandBuffer layoutCmd = createCommandBuffer( VK_COMMAND_BUFFER_LEVEL_PRIMARY, mCommandPool, true );
+
+  board.texture.mImageLayout = VK_IMAGE_LAYOUT_GENERAL;
+  setImageLayout( layoutCmd, board.texture.mImage, VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_UNDEFINED, board.texture.mImageLayout );
+
+  flushCommandBuffer( layoutCmd, mQueue, mCommandPool, true );
+
+  VkImageViewCreateInfo view = vkinit::imageview_create_info( format, board.texture.mImage, 0 );
+  view.subresourceRange = { VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 };
+  VK_CHECK( vkCreateImageView( mDevice, &view, nullptr, &board.texture.mView ) );
+
+  VkSamplerCreateInfo sampler = vkinit::sampler_create_info( VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER );
+  sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+  sampler.mipLodBias = 0.0f;
+  sampler.anisotropyEnable = VK_FALSE;
+  sampler.compareOp = VK_COMPARE_OP_NEVER;
+  sampler.minLod = 0.0f;
+  sampler.maxLod = VK_LOD_CLAMP_NONE;
+  sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+  VK_CHECK( vkCreateSampler( mDevice, &sampler, nullptr, &board.texture.mSampler ) );
+
+  board.texture.mDescriptor.imageLayout = board.texture.mImageLayout;
+  board.texture.mDescriptor.imageView = board.texture.mView;
+  board.texture.mDescriptor.sampler = board.texture.mSampler;
+  board.texture.mDevice = mDevice;
+
+  board.texture.mDS = ImGui_ImplVulkan_AddTexture( board.texture.mSampler, board.texture.mView, VK_IMAGE_LAYOUT_GENERAL );
+}
+
+int VulkanRenderer::addBoard( int width, int height, const char* content )
+{
+  vkQueueWaitIdle( mCompute.queue );
+
+  VkBoard b{};
+
+  b.type = RendererTextureType_Board;
+  b.id = mViewId++;
+  b.width = width;
+  b.height = height;
+  b.content = content;
+
+  prepareViewTexture( b, VK_FORMAT_R8G8B8A8_UNORM );
+  prepareViewCompute( b, sizeof( BoardBuffer ), mCompute.boardShader, mCompute.boardDescriptorSetLayout );  
+
+  BoardBuffer* boardBuffer = (BoardBuffer*)b.allocationInfo.pMappedData;
+  memcpy( boardBuffer->font, font_SWISSBX2, sizeof( font_SWISSBX2 ) );
+
+  mBoardViews.push_back( b );
+  return b.id;
 }

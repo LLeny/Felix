@@ -6,6 +6,7 @@
 #include "SysConfig.hpp"
 #include "UserInput.hpp"
 #include "version.hpp"
+#include "vulkan/VulkanRenderer.hpp"
 
 #ifndef _WIN32
 #include <time.h>

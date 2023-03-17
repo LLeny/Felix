@@ -37,25 +37,6 @@
     }                                                    \
   } while ( 0 )
 
-struct DeletionQueue
-{
-  std::deque<std::function<void()>> deletors;
-
-  void push_function( std::function<void()> &&function )
-  {
-    deletors.push_back( function );
-  }
-
-  void flush()
-  {
-    for ( auto it = deletors.rbegin(); it != deletors.rend(); it++ )
-    {
-      ( *it )();
-    }
-    deletors.clear();
-  }
-};
-
 typedef struct LynxScreenBuffer
 {
   uint8_t mBuffer[SCREEN_BUFFER_SIZE];
@@ -63,10 +44,24 @@ typedef struct LynxScreenBuffer
   ImageProperties::Rotation mRotation;
 } LynxScreenBuffer;
 
-typedef struct VkScreenView
+typedef struct BoardBuffer
+{
+  uint8_t content[ 256 * 256 ];
+  uint8_t font[ 256 * 8 * 16 ];
+} BoardBuffer;
+
+enum RendererTextureType
+{
+  RendererTextureType_None = 0,
+  RendererTextureType_ScreenView = 1,
+  RendererTextureType_Board = 2,
+};
+
+typedef struct VkTextureView
 {
   int id = 0;
-  uint16_t baseAddress{};
+  bool ready = false;
+  RendererTextureType type{};
   VmaAllocation allocation{};
   VulkanTexture texture{};
   LynxScreenBuffer screenBuffer{};
@@ -76,7 +71,19 @@ typedef struct VkScreenView
   VkDescriptorSet descriptorSet{};
   VkPipelineLayout pipelineLayout{};
   VkPipeline pipeline{};
+} VktextureView;
+
+typedef struct VkScreenView : VkTextureView
+{
+  uint16_t baseAddress{};
 } VkScreenView;
+
+typedef struct VkBoard : VkTextureView
+{
+  int width = 20;
+  int height = 10;
+  const char* content{};
+} VkBoard;
 
 class VulkanRenderer : public IRenderer
 {
@@ -94,6 +101,11 @@ public:
   void setRotation( ImageProperties::Rotation rotation ) override;
 
 private:
+#if defined( VKB_DEBUG )
+  VkDebugUtilsMessengerEXT debugUtilsMessenger{ VK_NULL_HANDLE };
+  VkDebugReportCallbackEXT debugReportCallback{ VK_NULL_HANDLE };
+#endif
+
   void setupVulkan( const char **extensions, uint32_t extensions_count );
   void setupVulkanWindow( ImGui_ImplVulkanH_Window *wd, VkSurfaceKHR surface, int width, int height );
   void cleanupVulkanWindow();
@@ -103,30 +115,35 @@ private:
   void flushCommandBuffer( VkCommandBuffer commandBuffer, VkQueue queue, VkCommandPool pool, bool free );
   void setImageLayout( VkCommandBuffer cmdbuffer, VkImage image, VkImageAspectFlags aspectMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VkPipelineStageFlags dstStageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT );
   
-  void prepareScreenTexture( VkScreenView* screenView, VkFormat format );
-  void destroyScreenTexture( VkScreenView* screenView );
-
   void prepareCompute();
   void destroyCompute();
-  void buildComputeCommandBuffer();
-  VkPipelineShaderStageCreateInfo loadShader( std::string fileName, VkShaderStageFlagBits stage );
 
-#if defined( VKB_DEBUG )
-  VkDebugUtilsMessengerEXT debugUtilsMessenger{ VK_NULL_HANDLE };
-  VkDebugReportCallbackEXT debugReportCallback{ VK_NULL_HANDLE };
-#endif
+  void prepareViewCompute( VkTextureView& view, size_t bufferSize, VkPipelineShaderStageCreateInfo& shader, VkDescriptorSetLayout& descLayout );
+  void destroyViewCompute( VkTextureView& view );
+
+  void destroyViewTexture( VkTextureView& view );
+    
+  void buildComputeCommandBuffer( VkTextureView& view );
+  virtual ImTextureID getTextureID( int viewId ) override;
+  
+  VkPipelineShaderStageCreateInfo loadShader( std::string fileName, VkShaderStageFlagBits stage );
 
   void frameRender( ImGui_ImplVulkanH_Window *wd, ImDrawData *draw_data );
   void framePresent( ImGui_ImplVulkanH_Window *wd );
   void renderImGui( UI &ui );
-  void renderScreenViews( Manager&manager );
   ImVec2 getDimensions() override;
+
+  virtual bool deleteView( int view ) override;
+
+  void renderScreenViews( Manager& manager );
+  void prepareViewTexture( VkScreenView& screenView, VkFormat format );
   virtual int addScreenView( uint16_t baseAddress ) override;
   virtual void setScreenViewBaseAddress( int id, uint16_t baseAddress ) override;
-  virtual bool deleteScreenView( int screenId ) override;
-  virtual ImTextureID getScreenTextureID( int screenId ) override;
-  void prepareScreenViews();
-  void destroyScreenViews();
+
+
+  void renderBoards();
+  void prepareViewTexture( VkBoard& board, VkFormat format );
+  virtual int addBoard( int width, int height, const char* content ) override;
 
   ImVec2 mDimensions{};
 
@@ -149,7 +166,6 @@ private:
   VmaAllocator mAllocator{};
   VkAllocationCallbacks *mAllocationCallbacks{};
 
-  DeletionQueue mMainDeletionQueue;
   std::vector<VkShaderModule> mShaderModules;
 
   GLFWwindow *mMainWindow;
@@ -159,7 +175,12 @@ private:
 
   std::shared_ptr<VideoSink> mVideoSink{};
 
-  std::vector<VkScreenView> mScreenViews{};
+  std::vector<VkScreenView> mScreenViewViews{};
+  std::vector<VkBoard> mBoardViews{};
+
+  int mViewId = 0;
+  int mFontWidth = 8;
+  int mFontHeight = 16;
 
   ImageProperties::Rotation mRotation{};
 
@@ -169,6 +190,9 @@ private:
     uint32_t queueFamily;
     VkCommandPool commandPool;
     VkSemaphore semaphore;
-    VkDescriptorSetLayout descriptorSetLayout;
+    VkDescriptorSetLayout screenViewDescriptorSetLayout;
+    VkDescriptorSetLayout boardDescriptorSetLayout;
+    VkPipelineShaderStageCreateInfo screenViewShader;
+    VkPipelineShaderStageCreateInfo boardShader;
   } mCompute;
 };

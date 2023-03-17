@@ -1,9 +1,9 @@
 #pragma once
 #include "ISystemDriver.hpp"
-#include "vulkan/VulkanRenderer.hpp"
 
 class IRenderer;
 class UserInput;
+class VulkanRenderer;
 
 class SystemDriver : public ISystemDriver
 {

@@ -17,7 +17,8 @@ class FileBrowser;
 struct BoardRendering
 {
   bool enabled;
-  void* window;
+  void* window{};
+  int rendererBoardId{};
   float width;
   float height;
 };

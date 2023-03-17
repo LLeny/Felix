@@ -20,7 +20,7 @@ UI::UI( Manager &manager ) : mManager{ manager }, mOpenMenu{}, mFileBrowser{ std
 
 UI::~UI()
 {
-  mManager.mSystemDriver->renderer()->deleteScreenView( mMainScreenViewId );
+  mManager.mSystemDriver->renderer()->deleteView( mMainScreenViewId );
 }
 
 void UI::initialize()
@@ -490,7 +490,7 @@ void UI::drawMainScreenView()
     frameSize = { size.x, size.y - headerHeight };
   }
 
-  if ( auto tex = mManager.mSystemDriver->renderer()->getScreenTextureID( mMainScreenViewId ) )
+  if ( auto tex = mManager.mSystemDriver->renderer()->getTextureID( mMainScreenViewId ) )
   {
     ImVec2 tgtSize = { frameSize };
 
@@ -517,8 +517,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
 {
   std::unique_lock<std::mutex> l = mManager.mDebugger.lockMutex();
 
-  // TODO
-  auto historyRendering = false;//mManager.renderHistoryWindow();
+  auto historyRendering = mManager.renderHistoryWindow();
   bool debugMode = mManager.mDebugger.isDebugMode();
 
   if ( debugMode )
@@ -560,13 +559,19 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::End();
     }
 
-    // TODO
-    // if ( historyRendering.enabled )
-    // {
-    //   ImGui::Begin( "History", &historyRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
-    //   ImGui::Image( historyRendering.window, ImVec2{ historyRendering.width, historyRendering.height } );
-    //   ImGui::End();
-    // }
+    if ( historyRendering.enabled )
+    {
+      auto textId = mManager.mSystemDriver->renderer()->getTextureID ( historyRendering.rendererBoardId );
+      if( textId != nullptr )
+      {
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
+        ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, { 0, 0 } );
+        ImGui::Begin( "History", &historyRendering.enabled, ImGuiWindowFlags_AlwaysAutoResize );
+        ImGui::Image( textId, ImVec2{ historyRendering.width, historyRendering.height } );
+        ImGui::End();
+        ImGui::PopStyleVar(2);
+      }
+    }
 
     std::vector<int> removedIds;
     for ( auto &sv : mManager.mDebugger.screenViews() )
@@ -644,7 +649,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
       if ( it != mManager.mDebugger.mScreenViews.end() )
       {
         mManager.mSystemDriver->renderer()->setScreenViewBaseAddress( it->id, addr );
-        ImGui::Image( mManager.mSystemDriver->renderer()->getScreenTextureID( it->id ), size );
+        ImGui::Image( mManager.mSystemDriver->renderer()->getTextureID( it->id ), size );
       }
 
       ImGui::End();
@@ -664,18 +669,18 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::Checkbox( "CPU Window", &mManager.mDebugger.visualizeCPU );
       ImGui::Checkbox( "Disassembly Window", &mManager.mDebugger.visualizeDisasm );
       ImGui::Checkbox( "Memory Window", &mManager.mDebugger.visualizeMemory );
-      //TODO
-      // if ( ImGui::Checkbox( "History Window", &historyRendering.enabled ) )
-      // {
-      //   if ( historyRendering.enabled )
-      //   {
-      //     mManager.mInstance->debugCPU().enableHistory( mManager.mDebugger.historyVisualizer().columns, mManager.mDebugger.historyVisualizer().rows );
-      //   }
-      //   else
-      //   {
-      //     mManager.mInstance->debugCPU().disableHistory();
-      //   }
-      // }
+
+      if ( ImGui::Checkbox( "History Window", &historyRendering.enabled ) )
+      {
+        if ( historyRendering.enabled )
+        {
+          mManager.mInstance->debugCPU().enableHistory( mManager.mDebugger.historyVisualizer().columns, mManager.mDebugger.historyVisualizer().rows );
+        }
+        else
+        {
+          mManager.mInstance->debugCPU().disableHistory();
+        }
+      }
       if ( ImGui::Selectable( "New Screen View" ) )
       {
         mManager.mDebugger.newScreenView( mManager.mSystemDriver->renderer() );
@@ -683,7 +688,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
       ImGui::EndPopup();
     }
 
-    // mManager.mDebugger.visualizeHistory( historyRendering.enabled );
+    mManager.mDebugger.visualizeHistory( historyRendering.enabled );
   }
 }
 
