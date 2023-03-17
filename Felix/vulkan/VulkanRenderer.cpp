@@ -505,7 +505,7 @@ void VulkanRenderer::buildComputeCommandBuffer( VkTextureView& view )
   vkCmdBindPipeline( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipeline );
   vkCmdBindDescriptorSets( view.commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, view.pipelineLayout, 0, 1, &view.descriptorSet, 0, 0 );
 
-  vkCmdDispatch( view.commandBuffer, view.texture.mWidth / 16, view.texture.mHeight / 6, 1 );
+  vkCmdDispatch( view.commandBuffer, view.texture.mWidth / view.groupXDiv, view.texture.mHeight / view.groupYDiv, 1 );
 
   vkEndCommandBuffer( view.commandBuffer );
 
@@ -778,11 +778,25 @@ void VulkanRenderer::setRotation( ImageProperties::Rotation rotation )
       continue;
     }
 
+    if( mRotation == ImageProperties::Rotation::NORMAL )
+    {
+      view.groupXDiv = 16;
+      view.groupYDiv = 6;
+    }
+    else
+    {
+      view.groupXDiv = 6;
+      view.groupYDiv = 16;
+    }
+
     destroyViewTexture( view );
     destroyViewCompute( view );
 
     prepareViewTexture( view, VK_FORMAT_R8G8B8A8_UNORM );
     prepareViewCompute( view, sizeof( LynxScreenBuffer ), mCompute.screenViewShader, mCompute.screenViewDescriptorSetLayout );
+
+    LynxScreenBuffer* screenbuffer = (LynxScreenBuffer*)view.allocationInfo.pMappedData;
+    screenbuffer->mRotation = mRotation;
   }
 }
 
@@ -804,7 +818,6 @@ void VulkanRenderer::renderScreenViews( Manager& manager )
 
     LynxScreenBuffer* screen = (LynxScreenBuffer*)view.allocationInfo.pMappedData;
     const uint8_t* srcBuffer;
-    screen->mRotation = mRotation;
 
     if( !view.data.screenview.baseAddress )
     {
@@ -843,7 +856,7 @@ void VulkanRenderer::prepareViewTexture( VkTextureView& view, VkFormat format )
   uint32_t w = SCREEN_WIDTH;
   uint32_t h = SCREEN_HEIGHT;
 
-  if ( (int)mRotation )
+  if ( mRotation != ImageProperties::Rotation::NORMAL )
   {
     w = SCREEN_HEIGHT;
     h = SCREEN_WIDTH;
@@ -954,6 +967,11 @@ int VulkanRenderer::addScreenView( uint16_t baseAddress )
   v.type = RendererTextureType_ScreenView;
   v.id = mViewId++;
   v.data.screenview.baseAddress = baseAddress;
+  if( mRotation != ImageProperties::Rotation::NORMAL )
+  {
+    v.groupXDiv = 6;
+    v.groupYDiv = 16;
+  }
 
   prepareViewTexture( v, VK_FORMAT_R8G8B8A8_UNORM );
   prepareViewCompute( v, sizeof( LynxScreenBuffer ), mCompute.screenViewShader, mCompute.screenViewDescriptorSetLayout );  

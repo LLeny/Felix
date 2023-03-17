@@ -71,7 +71,8 @@ typedef struct VkTextureView
   VkDescriptorSet descriptorSet{};
   VkPipelineLayout pipelineLayout{};
   VkPipeline pipeline{};
-
+  int groupXDiv = 16;
+  int groupYDiv = 6;
   union
   {
     struct VkScreenView
