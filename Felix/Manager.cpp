@@ -126,6 +126,8 @@ void Manager::initialize( std::shared_ptr<ISystemDriver> systemDriver )
   mSystemDriver->registerUpdate( std::bind( &Manager::update, this ) );
 
   mUI.initialize();
+
+  reset();
 }
 
 IUserInput& Manager::userInput() const
