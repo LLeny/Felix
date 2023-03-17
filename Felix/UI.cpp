@@ -20,7 +20,6 @@ UI::UI( Manager &manager ) : mManager{ manager }, mOpenMenu{}, mFileBrowser{ std
 
 UI::~UI()
 {
-  mManager.mSystemDriver->renderer()->deleteView( mMainScreenViewId );
 }
 
 void UI::initialize()
@@ -561,8 +560,7 @@ void UI::drawDebugWindows( ImGuiIO &io )
 
     if ( historyRendering.enabled )
     {
-      auto textId = mManager.mSystemDriver->renderer()->getTextureID ( historyRendering.rendererBoardId );
-      if( textId != nullptr )
+      if ( auto textId = mManager.mSystemDriver->renderer()->getTextureID ( historyRendering.rendererBoardId ) )
       {
         ImGui::PushStyleVar( ImGuiStyleVar_WindowBorderSize, 0 );
         ImGui::PushStyleVar( ImGuiStyleVar_WindowPadding, { 0, 0 } );
@@ -649,7 +647,10 @@ void UI::drawDebugWindows( ImGuiIO &io )
       if ( it != mManager.mDebugger.mScreenViews.end() )
       {
         mManager.mSystemDriver->renderer()->setScreenViewBaseAddress( it->id, addr );
-        ImGui::Image( mManager.mSystemDriver->renderer()->getTextureID( it->id ), size );
+        if( auto textId = mManager.mSystemDriver->renderer()->getTextureID( it->id ) )
+        {
+          ImGui::Image( textId, size );
+        }
       }
 
       ImGui::End();

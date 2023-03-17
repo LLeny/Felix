@@ -425,6 +425,7 @@ void VulkanRenderer::terminate()
   for( auto& view : mViews )
   {
     destroyViewTexture( view );
+    destroyViewCompute( view );
   }
 
   destroyCompute(); 
@@ -839,7 +840,7 @@ ImTextureID VulkanRenderer::getTextureID( int viewId )
 {
   auto view = std::find_if( mViews.begin(), mViews.end(), [viewId](const VkTextureView &v) { return v.id == viewId; } );
 
-  if( view == mViews.end() || !view->ready )
+  if( view == mViews.end() || !view->ready || !view->texture.mDS )
   {
     return nullptr;  
   }
