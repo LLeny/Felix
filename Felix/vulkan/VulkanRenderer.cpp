@@ -792,6 +792,8 @@ void VulkanRenderer::setRotation( ImageProperties::Rotation rotation )
     destroyViewTexture( view );
     destroyViewCompute( view );
 
+    mSwapChainRebuild = true;
+
     prepareViewTexture( view, VK_FORMAT_R8G8B8A8_UNORM );
     prepareViewCompute( view, sizeof( LynxScreenBuffer ), mCompute.screenViewShader, mCompute.screenViewDescriptorSetLayout );
 
