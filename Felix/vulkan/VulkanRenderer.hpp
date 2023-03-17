@@ -71,19 +71,24 @@ typedef struct VkTextureView
   VkDescriptorSet descriptorSet{};
   VkPipelineLayout pipelineLayout{};
   VkPipeline pipeline{};
+
+  union
+  {
+    struct VkScreenView
+    {
+      uint16_t baseAddress{};
+    } screenview;
+    struct VkBoard
+    {
+      int columns = 20;
+      int rows = 10;
+      const char* content{};
+    } board;
+  } data;
+
 } VktextureView;
 
-typedef struct VkScreenView : VkTextureView
-{
-  uint16_t baseAddress{};
-} VkScreenView;
 
-typedef struct VkBoard : VkTextureView
-{
-  int width = 20;
-  int height = 10;
-  const char* content{};
-} VkBoard;
 
 class VulkanRenderer : public IRenderer
 {
@@ -134,15 +139,13 @@ private:
   ImVec2 getDimensions() override;
 
   virtual bool deleteView( int view ) override;
+  void prepareViewTexture( VkTextureView& view, VkFormat format );
 
   void renderScreenViews( Manager& manager );
-  void prepareViewTexture( VkScreenView& screenView, VkFormat format );
   virtual int addScreenView( uint16_t baseAddress ) override;
   virtual void setScreenViewBaseAddress( int id, uint16_t baseAddress ) override;
 
-
   void renderBoards();
-  void prepareViewTexture( VkBoard& board, VkFormat format );
   virtual int addBoard( int width, int height, const char* content ) override;
 
   ImVec2 mDimensions{};
@@ -175,8 +178,7 @@ private:
 
   std::shared_ptr<VideoSink> mVideoSink{};
 
-  std::vector<VkScreenView> mScreenViewViews{};
-  std::vector<VkBoard> mBoardViews{};
+  std::vector<VkTextureView> mViews{};
 
   int mViewId = 0;
   int mFontWidth = 8;
