@@ -37,6 +37,7 @@ file(COPY "${CMAKE_CURRENT_SOURCE_DIR}/helpers/cmake/lua/CMakeLists.txt" DESTINA
 
 if( WIN32 )
     set( CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON )
+    add_compile_options($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 endif()
 
 if( CMAKE_CXX_COMPILER_ID STREQUAL "Clang" )
