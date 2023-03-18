@@ -18,8 +18,6 @@ endif()
 
 project( felix VERSION "0.0.0" )
 
-add_compile_definitions("VKB_DEBUG")
-
 configure_file( "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp.in" "${CMAKE_CURRENT_SOURCE_DIR}/Felix/version.hpp" )
 
 find_package( Vulkan REQUIRED )
