@@ -1,6 +1,9 @@
 #include "pch.hpp"
 #include "ConfigProvider.hpp"
 #include "SysConfig.hpp"
+#ifdef WIN32
+#include <windows.h>
+#endif
 
 ConfigProvider::ConfigProvider() : mAppDataFolder{ obtainAppDataFolder() }, mSysConfig{}
 {
@@ -42,6 +45,27 @@ void ConfigProvider::lock()
 {
   errno = 0;
   auto lockFilePath = ConfigProvider::obtainAppDataFolder() / "lock.tmp";
+
+#ifdef WIN32
+  HANDLE hFile = CreateFile( (LPCSTR)lockFilePath.c_str(), GENERIC_READ, 0, NULL, OPEN_EXISTING, 0, NULL );
+  auto dwLastError = GetLastError();
+
+  if( hFile != NULL && hFile != INVALID_HANDLE_VALUE )
+  {
+    mIsLocked = true;
+    return;
+  }
+  else if(dwLastError == ERROR_FILE_NOT_FOUND )
+  {
+    hFile = CreateFile( (LPCSTR)lockFilePath.c_str(), GENERIC_READ, 0, NULL, CREATE_NEW, 0, NULL );
+    auto dwLastError = GetLastError();
+    mIsLocked = hFile != NULL && hFile != INVALID_HANDLE_VALUE;
+    return;
+  }
+
+  mIsLocked = false;
+  return;
+#else
   int fd = open( lockFilePath.c_str(), O_CREAT | O_WRONLY, S_IRUSR | S_IWUSR );
 
   if ( fd == -1 )
@@ -56,8 +80,9 @@ void ConfigProvider::lock()
     mIsLocked = false;
     return;
   }
-
   mIsLocked = true;
+#endif
+
 }
 
 bool ConfigProvider::isLocked()
