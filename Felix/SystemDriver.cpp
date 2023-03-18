@@ -91,6 +91,8 @@ int SystemDriver::eventLoop( Manager &m )
 
     update();
 
+    mRenderer->render( m, m.mUI );
+
     mRenderingTime     = now - mLastRenderingTime;
     mLastRenderingTime = now;
 

@@ -452,10 +452,11 @@ void VulkanRenderer::terminate()
 
 int64_t VulkanRenderer::render( Manager& manager, UI &ui )
 {
-  renderImGui( ui );
+  double time = glfwGetTime();
   renderScreenViews( manager );
   renderBoards();
-  return 1;
+  renderImGui( ui );
+  return (glfwGetTime() - time) * (1000000000);
 }
 
 VkPipelineShaderStageCreateInfo VulkanRenderer::loadShader( std::string fileName, VkShaderStageFlagBits stage )

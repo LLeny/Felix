@@ -32,7 +32,6 @@ mDoReset{ false },
 mDebugger{},
 mProcessThreads{},
 mJoinThreads{},
-mRenderThread{},
 mAudioThread{},
 mRenderingTime{},
 mScriptDebuggerEscapes{ std::make_shared<ScriptDebuggerEscapes>() },
@@ -40,24 +39,7 @@ mImageProperties{}
 {
   mDebugger( RunMode::RUN );
   mAudioOut = std::make_shared<AudioOut>();
-  mComLynxWire = std::make_shared<ComLynxWire>();
-
-  mRenderThread = std::thread{ [this]
-  {
-    while ( !mJoinThreads.load() )
-    {
-      if ( mProcessThreads.load() && mSystemDriver )
-      {
-        auto renderingTime = mSystemDriver->renderer()->render( *this, mUI );
-        std::scoped_lock<std::mutex> l{ mMutex };
-        mRenderingTime = mSystemDriver->mRenderingTime;
-      }
-      else
-      {
-        std::this_thread::sleep_for( std::chrono::milliseconds( 1 ) );
-      }
-    }
-  } };
+  mComLynxWire = std::make_shared<ComLynxWire>();  
 
   mAudioThread = std::thread{ [this]
   {
@@ -425,9 +407,6 @@ void Manager::stopThreads()
   if ( mAudioThread.joinable() )
     mAudioThread.join();
   mAudioThread = {};
-  if ( mRenderThread.joinable() )
-    mRenderThread.join();
-  mRenderThread = {};
 }
 
 void Manager::handleFileDrop( std::filesystem::path path )

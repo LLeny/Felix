@@ -83,7 +83,6 @@ private:
   sol::state mLua;
   std::atomic_bool mProcessThreads;
   std::atomic_bool mJoinThreads;
-  std::thread mRenderThread;
   std::thread mAudioThread;
   std::shared_ptr<ISystemDriver> mSystemDriver;
   std::shared_ptr<AudioOut> mAudioOut;
