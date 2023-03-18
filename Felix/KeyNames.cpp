@@ -11,7 +11,7 @@ namespace
     KeyNames();
     char const* name( uint32_t key ) const;
   private:
-    std::array<char const*, GLFW_KEY_LAST> mNames;
+    std::array<char const*, GLFW_KEY_LAST+1> mNames;
   };
 
   KeyNames::KeyNames() : mNames{}
@@ -126,14 +126,14 @@ namespace
 
   char const* KeyNames::name( uint32_t key ) const
   {
-    if( key < mNames.size() )
+    if ( key < mNames.size() && mNames[key] )
     {
       return mNames[key];
     }
     else
     {
       L_ERROR << "Unknown KeyName: " << key;
-      return nullptr;
+      return "Error";
     }
   }
 }

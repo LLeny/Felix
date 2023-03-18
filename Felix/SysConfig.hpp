@@ -20,6 +20,17 @@ struct SysConfig
   } bootROM;
   struct KeyMapping
   {
+#ifdef WIN32
+    int pause = '2';
+    int down = 264;
+    int up = 265;
+    int right = 262;
+    int left = 263;
+    int option1 = '1';
+    int option2 = '3';
+    int inner = 'Z';
+    int outer = 'X';
+#else
     int pause = GLFW_KEY_2;
     int down = GLFW_KEY_DOWN;
     int up = GLFW_KEY_UP;
@@ -29,6 +40,7 @@ struct SysConfig
     int option2 = GLFW_KEY_3;
     int inner = GLFW_KEY_Z;
     int outer = GLFW_KEY_X;
+#endif
   } keyMapping;
   std::filesystem::path lastOpenDirectory{};
   bool debugMode{};
